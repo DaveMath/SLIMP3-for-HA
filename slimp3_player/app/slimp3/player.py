@@ -44,6 +44,7 @@ class Player:
         self.welcome_t = 0.0
         self.sonos_room = ""
         self.apple_room = ""
+        self.cast_room = ""
         self.show_sonos = True
         self.sleep_mode = False
         self.sleep_keywords = list(DEFAULT_SLEEP_KEYWORDS)
@@ -71,7 +72,7 @@ class Player:
 
     def status(self):
         state = self.stream.state if self.stream else "stop"
-        return {"mac": self.mac, "name": self.name, "fw": self.fw, "configured": self.configured, "sonos_room": self.sonos_room, "apple_room": self.apple_room,
+        return {"mac": self.mac, "name": self.name, "fw": self.fw, "configured": self.configured, "sonos_room": self.sonos_room, "apple_room": self.apple_room, "cast_room": self.cast_room,
                 "show_sonos": self.show_sonos, "ip": self.addr[0], "state": state,
                 "position": round(self.pos_base + self.position(), 1), "volume": self.volume,
                 "sleep_mode": self.sleep_mode,

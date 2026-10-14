@@ -7,7 +7,7 @@
         (ContentDirectory)       |                          ^   acks + read pointer    |
                                  |                          +--------------------------+
                                  +--> ffmpeg (PCM) --> FFT --> spectrum (by playback position)
- Sonos (UPnP :1400) --> Sonos monitor --> display text, when the SLIMP3 is idle
+ Sonos (UPnP :1400), HomePod (AirPlay 2), Google Cast (:8009) --> read-only monitors --> display text, when the SLIMP3 is idle
  Browser / HA sidebar --ingress--> HTTP API (:8099) --> player queue and controls
 ```
 
@@ -21,9 +21,9 @@ Everything runs in one Python process inside the app container (`slimp3_player/a
 | `slimp3/mas3507d.py` | i2c commands for the SLIMP3's MP3 decoder chip (init and volume) |
 | `slimp3/player.py` | One device: ffmpeg, queue, display tasks |
 | `slimp3/nowplaying.py` | The display screens and text scrolling |
-| `slimp3/spectrum.py` | FFT analysis of the track being played |
+| `slimp3/spectrum.py` | FFT analysis of the track being played (the waveform display) |
 | `slimp3/upnp.py` | DLNA/UPnP ContentDirectory client |
-| `slimp3/sonos.py` | Read-only Sonos monitor |
+| `slimp3/sonos.py`, `apple.py`, `cast.py` | Read-only Sonos, HomePod and Google Cast monitors ([SPEAKERS.md](SPEAKERS.md)) |
 | `main.py`, `web/index.html` | HTTP API and the sidebar page |
 
 ## The SLIMP3 protocol
@@ -89,13 +89,13 @@ packet: a short init sequence (leave 4-bit mode, set brightness, increment mode,
 on) followed by 40 characters for line 1, a cursor jump to line 2, and 40 more characters. The display's
 character ROM is not Unicode, so text is folded to plain ASCII first.
 
-The spectrum analyzer draws bars with the display's **custom characters**. A character cell is 5x7
+The waveform display draws bars with the display's **custom characters**. A character cell is 5x7
 dots, so a bar has 7 heights; the 7 bar shapes are written into the display's character memory and
 resent every 20 seconds in case the memory is lost. A frame with the custom characters is 320 bytes, below the 500
 byte limit slimserver enforces.
 
 Text rules: a title that fits in 40 characters is centered and still; a longer one scrolls continuously
-with a separator between repeats. In the spectrum screen, the top line alternates artist and title,
+with a separator between repeats. In the waveform screen, the top line alternates artist and title,
 holding each for about three seconds (scrolling if long).
 
 ## Every display screen
@@ -106,22 +106,17 @@ no screen is blank or just says "Now playing": when something is not known, the 
 | When | Line 1 | Line 2 |
 | --- | --- | --- |
 | Player connects or restarts | `Connected to Home Assistant`, then `IP <address>` | `SLIMP3-for-HA`, then `MAC <address>` |
-| Setup prompts (see Boot screens) | the prompt, for example `Optional: name this player` | what to do, for example `HA sidebar > SLIMP3 > Settings` |
+| Setup prompts (see Boot screens) | the prompt, for example `Optional: name this player` | what to do, for example `App Configuration > players` |
 | Idle | `SLIMP3 server ready` | the player's name and address |
 | Starting a track | `Buffering from <server>` (or `Buffering...`) | the title |
 | Playing, artist known | the artist | the title |
 | Playing, no artist | the album, else `<server> - Live TV` / `<server> - Live radio`, else the server name | the title (a channel name, a file name) |
-| Playing, analyzer on | alternates the line above and the title | a 40-band spectrum |
+| Playing, waveform on | alternates the line above and the title | a 40-band spectrum |
 | Paused or rebuffering | `Paused - ` or `Buffering - ` in front of line 1 | unchanged |
 | Stopped | `Stopped` | the last title, else `Pick music in Home Assistant` |
 | Queue finished | `Queue finished` | `Pick more music in Home Assistant` |
-| Sonos, radio station | the station, for example `CH 55 - SiriusXM Chill` | `Artist - Title` (or the source if no track) |
-| Sonos, a track | the room and source, for example `Office: Spotify` | `Artist - Title` |
-| Sonos, no track info | the room | where it comes from: `TV audio`, `Line-in`, or `Playing` |
-| Sleep sounds, first 10 s (sleep mode on) | the normal screen | the normal screen |
-| Sleep sounds, next 10 s | `Going to sleep` | `Screen off in 10` ... `Screen off in 1` |
-| Sleep sounds, after that | blank, display at 0% brightness | blank; refreshed every 30 s in case the display lost it |
-| HomePod playing | `Kitchen: HomePod` or `Kitchen: HomePod mini` | `Artist - Title` (a podcast: `Show - Episode`) |
+| A Sonos room, HomePod or Cast speaker playing, SLIMP3 idle | see [SPEAKERS.md](SPEAKERS.md) | |
+| Sleep sounds, sleep mode on | the normal screen for 10 s, then `Going to sleep` / `Screen off in 10`, then dark | see [SLEEP-MODE.md](SLEEP-MODE.md) |
 
 `<server>` is a short name for the music server (`HDHomeRun` for `HDHomeRun DMS 1069CDD7`, `Plex` for
 `Plex Media Server: HAPi5`). The sidebar page and the Home Assistant media player show the same information: the
@@ -148,76 +143,45 @@ carry on as for any new track.
 
 ## Boot screens
 
-A new player is created when its first hello arrives. A player that is already known and sends a
-discovery broadcast again has restarted. Either event starts the boot sequence (see
-[CONFIGURATION.md](CONFIGURATION.md#boot-screens-seeing-each-players-ip-and-mac)): a small task that
-writes a few screens to the display, with prompts chosen from the live configuration, then hands the
-display back. Starting playback or another connect within 20 seconds cancels or suppresses it. The Sonos
-display waits until the sequence has finished.
+A new player is created when its first hello arrives. A player that is already known and sends a discovery broadcast again has restarted. Either event starts the boot sequence (see [CONFIGURATION.md](CONFIGURATION.md#boot-screens-seeing-each-players-ip-and-mac)): a small task writes a few screens to the display, with prompts chosen from the live configuration, then hands the display back. Starting playback, or another connect within 20 seconds, cancels or suppresses it. The speaker display waits until the sequence has finished.
 
 ## Footprint
 
-Measured on a Mac (Apple silicon, Python 3.13) against a simulated SLIMP3, your real Plex server and your real
-Sonos system. **Not measured on Raspberry Pi hardware**: CPU shares are relative, and the same work will be a
-larger share of a slower core. After installing, the app's Info page in Home Assistant shows its real CPU and
-memory use on your host.
+The app needs very little CPU. Measured on a Mac with Apple silicon (Python 3.13; the idle and waveform rows on an M2 Max) against a simulated SLIMP3, a real Plex server and a real Sonos system. The figures are shares of one core:
 
-| Situation | Network | CPU (share of one Mac core) |
+| Situation | Network | CPU |
 | --- | --- | --- |
-| Idle, player attached (one hello every 10 s) | negligible | 0.005% |
-| Mirroring Sonos in one room | 1.7 KB/s (3 HTTP calls, 5 KB, every 3 s) | 0.11% |
-| Mirroring Sonos, "any room" (all groups polled) | 3.1 KB/s (6 calls, 9 KB) | 0.26% |
-| Pass-through MP3 at 261 kbps | to the player about 33 KB/s (about the file's bit rate) plus 27 acks/s (1.2 KB/s) and about 4 empty polls/s | 0.53% (includes the simulated player) |
-| Converting with ffmpeg (non-MP3, TV) | as above, at 128 kbps | about 2.7% (0.64 s of ffmpeg CPU per 40 s of audio, measured before the polling change) |
+| Idle, player attached (one hello every 10 s), with Cast and the other monitors idle | negligible | 0.0% (about 56 MB resident) |
+| Mirroring Sonos in one room | 1.7 KB/s (3 HTTP calls every 3 s) | 0.11% |
+| Mirroring Sonos, any room (all groups polled) | 3.1 KB/s | 0.26% |
+| MP3 pass-through at 261 kbps | to the player about 33 KB/s plus 27 acks/s and about 4 empty polls/s | 0.53% (includes the simulated player) |
+| Waveform display on, 8 frames/s | none extra | about 1.0%, plus under 1 s of ffmpeg CPU once per 4-5 minute track |
+| Converting with ffmpeg (non-MP3, TV) | as above, at 128 kbps | about 2.7% |
 
-- **Download side.** The source is read over HTTP. If the media server runs on the same host (Plex as a Home
-  Assistant app), that traffic never reaches the LAN. Otherwise it adds about the same again.
-- **Memory.** The Python process measured between 22 and 48 MB (macOS figures vary). Not measured on Alpine.
-- **Disk.** The container image is about 218 MiB installed (143 packages in the Supervisor build log). Most of it is
-  ffmpeg and its libraries; numpy and OpenBLAS (used only by the optional analyzer) are 5 of the 143 packages.
-- **HomePods** (when mirrored): about 0.10% of a core and 5 MB more with two connected and idle, six TCP connections; about 0.03%
-  and no connections otherwise. Details in [HOMEPOD.md](HOMEPOD.md).
-- **Known remaining costs.** Sonos is polled, not event-driven. The engine still polls a full player buffer about
-  4 times a second. The Python runtime and the image size are what they are.
+- **On a Raspberry Pi 5.** One Pi 5 core is several times slower than an M2 Max core, so expect a few percent of one core while the waveform runs and well under 1% otherwise. The waveform times itself at start-up and drops to the artist/title layout if the host is too slow (see below), so a slow host cannot be overloaded by it.
+- **Download side.** The source is read over HTTP. If the media server runs on the same host (Plex as a Home Assistant app), that traffic never reaches the LAN.
+- **Memory.** The Python process measured 22 to 56 MB. The waveform holds the decoded track in memory (22.05 kHz mono, capped at 15 minutes, about 40 MB at the cap).
+- **Disk.** The container image is about 218 MiB installed, mostly ffmpeg and its libraries.
+- **Speakers.** Two HomePods connected cost about 0.10% of a core and 5 MB; with a Cast connection open the idle figure above still rounds to 0.0% ([SPEAKERS.md](SPEAKERS.md)). Connections exist only while an idle SLIMP3 wants them.
+- Sonos is polled, not event-driven, and the engine polls a full player buffer about 4 times a second.
 
-Two inefficiencies found while measuring were fixed: Sonos polling originally used a new connection per call and
-polled every group (7 calls, 12.5 KB, 11.7 ms CPU per cycle in the test system), and the engine polled a full buffer
-20 times a second (19 empty polls and 43 acks per second, 1.33% CPU).
+## The waveform display
 
-## The spectrum analyzer (optional, off by default)
-
-The analyzer must show the audio **the player is playing now**, but the player buffers up to about
-eight seconds ahead of the audio you hear. So the app does not analyze what it just sent:
+Music from a media server shows a live 40-band spectrum analyzer on the bottom line (the `spectrum` option, on by default; the `sync_ms` option is the **waveform delay**, default 2 ms). It must show the audio **the player is playing now**, but the player buffers up to about eight seconds ahead of what you hear. So the app does not analyze what it just sent:
 
 1. A second ffmpeg decodes the same source to 22.05 kHz mono PCM into memory (capped at 15 minutes).
-2. The app tracks **playback position** from the acknowledgements: the read pointer counts the bytes
-   the decoder has consumed, and at 128 kbps that is exactly 16,000 bytes per second.
-3. At each display frame it takes 1024 samples around that position, applies a Hann window and an FFT,
-   groups the result into **40 logarithmic bands from 60 Hz to 10 kHz**, adds a +3 dB/octave tilt so treble
-   is visible, and scales to 7 levels with a slow automatic gain and a gentle fall-off.
+2. The app tracks **playback position** from the acknowledgements: the read pointer counts the bytes the decoder has consumed, and at 128 kbps that is exactly 16,000 bytes per second.
+3. At each display frame it takes 1024 samples around that position, applies a Hann window and an FFT, groups the result into **40 logarithmic bands from 60 Hz to 10 kHz**, adds a +3 dB/octave tilt so treble is visible, and scales to 7 levels with a slow automatic gain and a gentle fall-off.
 
-Because position comes from the player itself, the bars follow what you hear rather than what was
-sent. `sync_ms` trims any remaining offset (decoder and output delays are not measured). The analysis
-assumes the 128 kbps CBR stream described above.
-
-numpy is imported only when the analyzer is switched on. With it off, the display shows artist and title.
-When it is on, at startup the app times the analyzer on its own host and logs the result
-(`spectrum analyzer: x ms per frame`). If a
-frame would take more than half of a display frame period, or numpy is missing, it switches to the
-artist/title layout by itself. Live sources (a TV tuner) always skip the analyzer, because it reads the
-source separately from the audio sent to the player.
+Because position comes from the player itself, the bars follow what you hear rather than what was sent. The delay option trims any remaining offset. At start-up the app times the analyzer on its own host and logs the result (`spectrum analyzer: x ms per frame`); if a frame would take more than half of a display frame period, or numpy is missing, it switches to the artist/title layout by itself. Live sources (a TV tuner) always skip the analyzer, because it reads the source separately from the audio sent to the player.
 
 ## Sleep mode
 
-One small watcher per display screen (the music screen and the Sonos/HomePod mirror screen share it). Each time the screen
-refreshes, it asks whether the title, artist, album or station contains a keyword as a whole word. While it does, it counts from the
-first match: 10 seconds of the normal screen, 10 seconds of the countdown, then a blank frame at brightness 0%. It costs one
-packet every 30 seconds while dark, and when the match goes away the next normal frame restores brightness and redraws both lines.
-It is off unless you switch it on. See [SLEEP-MODE.md](SLEEP-MODE.md).
+See [SLEEP-MODE.md](SLEEP-MODE.md).
 
 ## Network discovery
 
-Sonos players and DLNA servers are found with an SSDP (multicast) search. On a host with several network
+Sonos players and DLNA servers are found with an SSDP (multicast) search; HomePods and Cast devices with mDNS (Bonjour). On a host with several network
 interfaces (wired, Wi-Fi, container bridges) a single search may leave by the wrong one, so on Linux the search
 is sent on the default route and again on each interface address. The DLNA server search also tries Plex's DLNA
 port on the host the app runs on, because a Plex running as a Home Assistant app does not answer the network
@@ -234,30 +198,9 @@ reachable on port 32469. Two details:
 - **Queues.** Playing a track queues the rest of its container; the queue advances on track end, and
   next, previous, pause, resume and volume are available. Each player has its own queue.
 
-## Sonos
+## Speakers
 
-The monitor is **read-only**: it never sends a play, pause or volume command.
-
-- **Discovery.** Unless turned off, it finds Sonos players with an SSDP search for the `ZonePlayer` device type
-  (about 3.5 seconds on the test network, two players found). The search repeats every 10 minutes and after a
-  failure, and only while some idle SLIMP3 wants Sonos. Addresses in `sonos_ips` are used as well.
-- It asks any one Sonos player for the household topology (UPnP `ZoneGroupTopology` on port 1400), and caches it
-  for 60 seconds.
-  That lists every group, its coordinator and its rooms. Invisible members (such as bonded subs and
-  surrounds) are left out.
-- Every 3 seconds it reads the transport state of the group coordinators **for the rooms a SLIMP3 is showing**,
-  and only if a group is playing does it also read the current media and track metadata (`AVTransport`). It
-  keeps one persistent HTTP connection per Sonos player. It polls only while some SLIMP3 is idle and wants to
-  show Sonos; otherwise it sleeps.
-- The **station** line comes from the current item's title when its class is a radio broadcast, for
-  example `CH 55 - SiriusXM Chill`. **Artist and title** come from the track metadata, or from the
-  stream-content string some radio sources use.
-- A player is attached to a **room**; the room's group coordinator is what knows what is playing.
-
-**There is no Sonos spectrum.** The Sonos network interface provides control and metadata, not the
-audio, and streaming-service audio goes from the service to the Sonos player directly. A live
-spectrum would need the audio signal itself, for example from a Sonos line-out into a USB audio-capture
-input on the Home Assistant host. That is not implemented.
+Sonos, HomePod and Google Cast speakers are read by three small monitors that connect only while an idle SLIMP3 wants them. They never send a playback command. See [SPEAKERS.md](SPEAKERS.md).
 
 ## Security
 
@@ -266,7 +209,7 @@ input on the Home Assistant host. That is not implemented.
   discovery. Home Assistant lowers an app's security rating for that.
 - The SLIMP3 UDP protocol has no authentication. Anything on the same network segment can send packets
   to the app's UDP port, as it could to the original server.
-- The app stores no credentials. It reads from Sonos and DLNA servers and never writes to them.
+- The app stores no credentials and has no login dependencies. It reads from Sonos, HomePod, Google Cast and DLNA servers and never writes to them.
 
 ## Origin
 

@@ -19,6 +19,11 @@ RUN pip install --no-cache-dir --break-system-packages --only-binary=:all: --no-
       chacha20poly1305-reuseable cryptography ifaddr protobuf pydantic requests srptools tabulate tinytag zeroconf \
  || echo "note: HomePod support was not installed (the app will run without it)"
 
+# Google Cast discovery needs the same zeroconf package, kept in its own step so Cast still finds devices if HomePod
+# support could not be installed. Without it, addresses listed under cast_ips still work.
+RUN pip install --no-cache-dir --break-system-packages --only-binary=:all: zeroconf \
+ || echo "note: zeroconf was not installed (Cast devices must be listed under cast_ips)"
+
 # Informational only: record what this ffmpeg offers. The app re-checks at startup and logs clearly.
 RUN (ffmpeg -hide_banner -version; ffmpeg -hide_banner -encoders) > /tmp/ffmpeg-info.txt 2>&1 || true; \
     head -1 /tmp/ffmpeg-info.txt; \

@@ -26,16 +26,27 @@ configuration:
   players:
     name: Per-player settings
     description: >-
-      One entry per SLIMP3, matched by MAC address (shown in the app log and in the sidebar page).
-      name is a label, sonos_room is the Sonos room this player mirrors, apple_room is the HomePod it mirrors,
-      show_sonos turns the Sonos and HomePod display off for this player, sleep_mode overrides the sleep mode
-      setting below for this player, and volume, spectrum and sync_ms override the defaults below.
+      One entry per SLIMP3, matched by MAC address (shown on the Info page and in the app log).
+      name is a label. sonos_room, apple_room and cast_room choose the Sonos room, HomePod or Google Cast device this
+      player shows when idle (the Info page lists the exact names); leave them all empty to show whatever is playing.
+      show_sonos turns that display off for this player, sleep_mode overrides the sleep mode setting below for this
+      player, and volume, spectrum and sync_ms override the defaults below.
   apple_discovery:
     name: Find HomePods automatically
     description: >-
       Show what a HomePod is playing on a SLIMP3 display, like Sonos. HomePods are found on the network and need no
       pairing; the app only reads what they are playing. Needs the HomePod access setting to allow your network
       (the default).
+  cast_discovery:
+    name: Find Google Home and Cast devices automatically
+    description: >-
+      Show what a Google Home, Nest or other Cast device is playing on a SLIMP3 display, like Sonos. Devices are found
+      on the network; no Google account or login is used, and the app only reads what they are playing.
+  cast_ips:
+    name: Google Cast device addresses (optional)
+    description: >-
+      Only add an address here if automatic discovery cannot see a device (for example when it is on another network
+      segment).
   sleep_mode:
     name: Sleep mode (optional)
     description: >-
@@ -62,14 +73,15 @@ configuration:
       The SLIMP3 decodes MP3 itself, so MP3 files are sent as they are (no transcoding). Turn off to
       convert everything to 128 kbps MP3 with ffmpeg instead, for example if a particular file will not play.
   spectrum:
-    name: Spectrum analyzer (optional extra)
+    name: Waveform display (spectrum analyzer)
     description: >-
-      Show a spectrum analyzer on the bottom display line. This needs a second decode of the audio and extra
-      memory, so it is off by default. When off, the display shows the artist on the top line and the title
-      on the bottom line.
+      Show a moving spectrum analyzer on the bottom display line while music plays from a media server. On by default.
+      The app times it at start-up and falls back to the artist and title layout if the machine is too slow. Turn off
+      to show the artist on the top line and the title on the bottom line instead.
   display_fps:
     name: Display frame rate
     description: Display updates per second while the analyzer is running.
   sync_ms:
-    name: Analyzer sync offset (ms)
-    description: Shift the analyzer earlier (negative) or later (positive) to match the sound.
+    name: Waveform delay (ms)
+    description: >-
+      Shift the waveform display earlier (negative) or later (positive) to match the sound. Default 2.

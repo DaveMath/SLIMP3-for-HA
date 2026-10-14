@@ -1,5 +1,5 @@
 name: "SLIMP3 Player"
-version: "0.11.2"
+version: "0.12.0"
 slug: "slimp3_player"
 description: "Play music from Plex/DLNA servers on a SLIMP3 network music player, or show what Sonos is playing on your network."
 url: "https://github.com/DaveMath/SLIMP3-for-HA"
@@ -24,6 +24,8 @@ options:
   sonos_ips: []
   sonos_discovery: true
   apple_discovery: true
+  cast_discovery: true
+  cast_ips: []
   players: []
   sonos_display: true
   boot_screens: true
@@ -47,9 +49,9 @@ options:
     - sleep
   default_volume: 40
   mp3_passthrough: true
-  spectrum: false
+  spectrum: true
   display_fps: 8
-  sync_ms: 0
+  sync_ms: 2
 schema:
   dlna_servers:
     - url
@@ -59,12 +61,16 @@ schema:
     - str
   sonos_discovery: bool
   apple_discovery: bool
+  cast_discovery: bool
+  cast_ips:
+    - str
   players:
     - mac: str
       name: "str?"
       sleep_mode: "bool?"
       sonos_room: "str?"
       apple_room: "str?"
+      cast_room: "str?"
       show_sonos: "bool?"
       volume: "int(0,100)?"
       spectrum: "bool?"

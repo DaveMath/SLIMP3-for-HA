@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.12.0
+- **Google Cast.** Google Home, Nest, Chromecast and Cast speaker groups are found automatically and shown on an idle SLIMP3's display like Sonos
+  and HomePods (read-only, no Google account or login). New options `cast_discovery` and `cast_ips`, and `cast_room` in `players`. The Info
+  page lists the Cast devices and what each reports; `GET /api/cast` returns the same. See docs/SPEAKERS.md.
+- **All settings are in the Configuration tab.** The Settings section of the web page is gone, along with `POST /api/player`; a name or room saved
+  from the page by an earlier version is no longer used, so set `name`, `sonos_room`, `apple_room` or `cast_room` in `players`. The Info page lists
+  the exact names to use.
+- **Waveform display on by default**, with a **waveform delay** (`sync_ms`) of 2 ms. Set `spectrum: false` for the artist and title layout. The
+  app still times the analyzer at start-up and falls back by itself when the host is too slow.
+- Boot screens describe what each player will show (`HomePod: ...`, `Cast: ...`) and no longer say `Sonos: not set up` when another speaker
+  type is in use.
+- Documentation rewritten without repetition: speakers are in docs/SPEAKERS.md (replacing docs/HOMEPOD.md), the footprint section has
+  current CPU figures, and the README explains why Alexa devices are not supported and credits the project's origin.
+
 ## 0.11.2
 - New **Info** section on the sidebar page: this player's details, the DLNA servers found on the network (searched automatically when you
   open it, add with a click), Sonos and HomePods with what each reports, and the **dashboard tile** steps. Those moved out of Settings.

@@ -1,22 +1,18 @@
 # SLIMP3 Player
 
-Play music from Plex/DLNA servers on a SLIMP3 network music player, or show what Sonos is playing on your network.
+Play music from Plex/DLNA servers on a SLIMP3 network music player, and show what Sonos, HomePod and Google Home / Nest speakers are playing on its display.
 
-Visit [SLIMP3 Player](https://github.com/DaveMath/SLIMP3-for-HA) page for more details. Written by @GGDM on Krystalize.AI local harness. Get your own local private LLM.
+Free software by @GGDM, inspired by Kevin Kelly ([kk.org](https://kk.org)), who gave me an old SLIMP3. This project is all about my love of hacking newly compatible interfaces on popular back-ends to devices which typically lose their legacy servers.
 
 ## Setup
 
-1. Set `dlna_servers` to your media server's description URL. For Plex's DLNA server:
-   `http://<host>:32469/DeviceDescription.xml`.
-2. Optional: set `sonos_ips` to the address of any one Sonos player.
-3. Start the app and open **SLIMP3** in the sidebar.
-
-The SLIMP3 finds this app by broadcast on UDP 3483, so the app uses the host network. If your player
-is on another VLAN, add its address to `player_ips`.
+1. Start the app and open **SLIMP3** in the sidebar. The SLIMP3 finds the app by broadcast on UDP 3483 (the app uses the host network). If your player is on another VLAN, add its address to `player_ips`.
+2. On the sidebar page, open **Info**: DLNA media servers on your network are found automatically and added with a click. Sonos, HomePod and Google Cast speakers are found automatically too.
+3. Everything else is optional and is set on this **Configuration** tab. There are no settings on the sidebar page.
 
 ## Several rooms
 
-Add one `players` entry per SLIMP3, matched by MAC address (shown in the app log and the sidebar page):
+Add one `players` entry per SLIMP3, matched by MAC address (shown on the Info page and in the app log):
 
 ```yaml
 players:
@@ -25,37 +21,20 @@ players:
     sonos_room: Kitchen
   - mac: "00:04:20:65:43:21"
     name: Garage
-    show_sonos: false
+    cast_room: Garage speaker
     volume: 55
 ```
 
-`sonos_room` is the Sonos room that player mirrors. Room names are listed at `/api/sonos`.
+`sonos_room`, `apple_room` and `cast_room` choose the Sonos room, HomePod or Google Cast device a player shows when idle. Leave them empty to show whatever is playing.
 
 ## Display
 
-While playing music from this app: artist on the top line, title on the bottom. MP3 files are sent to the
-SLIMP3 untouched (it decodes MP3 itself); other formats are converted by ffmpeg. Optional: `spectrum: true` turns
-the bottom line into a 40-band spectrum analyzer (it needs a second decode and extra memory, so it is off by default). When the SLIMP3 is idle and its
-Sonos room is playing: top line is the station (for example `CH 55 - SiriusXM Chill`), bottom line is
-`Artist - Title`. Text that fits is shown still; long text scrolls. While showing Sonos the app does no audio work.
+- Music from the app: artist and title, with a live spectrum analyzer on the bottom line (the **Waveform display** option, on by default, with a **Waveform delay** of 2 ms).
+- Idle: what a Sonos room, HomePod or Google Cast speaker is playing, as text only.
+- **Sleep mode** (optional): sleep sounds show for 10 seconds, count down 10 seconds with `Going to sleep`, then the display stays dark while they play.
 
-The app only reads from Sonos. It cannot get Sonos audio, so there is no spectrum for Sonos.
-
-## Web page
-
-Timeline scrubber (drag to jump within a track), a small volume control (minus and plus, 5 per press), and a Back button, breadcrumbs,
-Escape and the phone's back gesture for the library. The header shows the version. **Info** lists this player's details, the DLNA servers found
-(add with a click), Sonos and HomePods, and the dashboard tile steps; **Settings** has the player's name and what its display shows when idle. Details: `docs/WEB-PAGE.md` in the repository.
-
-## Sleep mode
-
-Optional, and set here in the Configuration tab only. With `sleep_mode: true`, when what is playing looks like sleep sounds (the `sleep_keywords`,
-for example white noise or rain), the display shows it for 10 seconds, shows `Going to sleep` with a 10 second countdown, then stays
-dark while that plays. Some songs match a keyword (for example "Purple Rain"); edit the list to taste. Details: `docs/SLEEP-MODE.md`.
+Alexa devices are not supported: Alexa has no local now-playing interface, and this app has no login dependencies.
 
 ## More
 
-Full documentation: configuration, how it works, API and troubleshooting are in the
-[docs folder](https://github.com/DaveMath/SLIMP3-for-HA/tree/main/docs).
-
-Licensed GPL-2.0-only. Derived in part from Lyrion Music Server.
+Full documentation: the [docs folder](https://github.com/DaveMath/SLIMP3-for-HA/tree/main/docs). Licensed GPL-2.0-only. Derived in part from Lyrion Music Server.

@@ -131,27 +131,10 @@ input[type=text],select{font:inherit;color:var(--fg);background:var(--card);bord
         <div class="field" style="margin-top:12px"><label for="addr">Or add one by address (for example 192.168.1.10)</label>
           <div class="row"><input type="text" id="addr" placeholder="Server address" autocomplete="off" onkeydown="if(event.key==='Enter')addByAddr()"><button class="btn primary" id="bAdd" onclick="addByAddr()">Add</button></div></div>
       </div>
-      <div><h3>Sonos and HomePods</h3><div class="sub" id="sonosInfo">Searching…</div></div>
+      <div><h3>Sonos, HomePods and Google Cast</h3><div class="sub" id="sonosInfo">Searching…</div></div>
       <div><h3>Dashboard tile</h3>
         <div class="sub" id="tileInfo"></div>
         <ol class="steps" id="tileSteps"></ol></div>
-    </div>
-  </details>
-
-  <details class="card" id="settings">
-    <summary>Settings</summary>
-    <div class="sec" style="padding-bottom:0"><button class="btn" onclick="closeSection('settings')">&larr; Back to the library</button></div>
-    <div class="sec">
-      <div id="secPlayer" class="hidden">
-        <h3>This player</h3>
-        <div class="field"><label for="pname">Name</label>
-          <input type="text" id="pname" maxlength="30" placeholder="For example: Living Room" oninput="nameTyped()" autocomplete="off">
-          <div class="saved" id="nameSaved">Changes are saved automatically.</div></div>
-        <div class="field" style="margin-top:10px"><label for="proom">Show on the display when this player is idle</label>
-          <select id="proom" onchange="roomChanged()"></select>
-          <div class="saved" id="roomSaved"></div></div>
-      </div>
-      <div class="sub">Sleep mode, the spectrum analyzer, volume and the media server addresses are set in this app's <b>Configuration</b> tab in Home Assistant.</div>
     </div>
   </details>
 </main>
@@ -162,7 +145,7 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;',
 const P={back:'M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z',play:'M8 5v14l11-7z',pause:'M6 19h4V5H6zm8-14v14h4V5z',next:'M6 18l8.5-6L6 6v12zM16 6v12h2V6z',prev:'M6 6h2v12H6zm3.5 6l8.5 6V6z',stop:'M6 6h12v12H6z',folder:'M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z',note:'M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z',server:'M20 13H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1v-6c0-.55-.45-1-1-1zM7 19c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM20 3H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1zM7 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z',chev:'M9.4 6L8 7.4 12.6 12 8 16.6 9.4 18l6-6z',tv:'M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z',refresh:'M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z',vol:'M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0014 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02z'};
 const ic=(n,sz)=>'<svg viewBox="0 0 24 24" width="'+(sz||20)+'" height="'+(sz||20)+'" fill="currentColor" aria-hidden="true"><path d="'+P[n]+'"/></svg>';
 let S={players:[],sel:'',sources:[],stack:[],items:[],sonos:null,heard:[],uptime:0,enabled:true,foundOnce:false};
-let toastT=null,nameT=null,volT=null;
+let toastT=null,volT=null;
 function toast(m,bad){const t=$('#toast');t.textContent=m;t.className='show'+(bad?' bad':'');clearTimeout(toastT);toastT=setTimeout(()=>t.className='',3200);}
 async function api(path,opts){const r=await fetch(path,opts);if(!r.ok){let m=await r.text();throw new Error(m||('Error '+r.status));}return r.json();}
 const post=(p,b)=>api(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
@@ -181,9 +164,10 @@ function renderChips(){const p=cur();let h='';
   else if(!S.sonos)h+='<span class="chip"><span class="spin"></span>Finding Sonos</span>';
   else h+=S.sonos.rooms.length?'<span class="chip ok"><span class="dot"></span>Sonos: '+S.sonos.rooms.length+' room'+(S.sonos.rooms.length>1?'s':'')+'</span>':'<span class="chip warn">No Sonos found</span>';
   if(S.apple&&S.apple.devices&&S.apple.devices.length)h+='<span class="chip ok"><span class="dot"></span>HomePod: '+S.apple.devices.length+'</span>';
+  if(S.cast&&S.cast.devices&&S.cast.devices.length)h+='<span class="chip ok"><span class="dot"></span>Cast: '+S.cast.devices.length+'</span>';
   $('#chips').innerHTML=h;}
 function renderPlayer(){const p=cur(),none=!p;
-  $('#discover').classList.toggle('hidden',!none);$('#playerCard').classList.toggle('hidden',none);$('#secPlayer').classList.toggle('hidden',none);$('#infoPlayer').classList.toggle('hidden',none);
+  $('#discover').classList.toggle('hidden',!none);$('#playerCard').classList.toggle('hidden',none);$('#infoPlayer').classList.toggle('hidden',none);
   if(none){const l=[];
     if(S.heard.length)l.push('Heard a device at '+S.heard.map(h=>esc(h.ip)+' ('+h.ago+' s ago)').join(', ')+'. Connecting…');
     else l.push('Nothing heard yet. Check that the SLIMP3 is powered on and on the same network as Home Assistant.');
@@ -204,9 +188,7 @@ function renderPlayer(){const p=cur(),none=!p;
   $('#bPlay').innerHTML=ic(p.state==='paused'?'play':(m.title?'pause':'play'));
   if(S.volTarget==null)$('#volv').textContent=p.volume;S.vol=p.volume;
   S.tl={pos:p.position,at:Date.now(),playing:p.state==='play',dur:p.duration,seekable:!!p.seekable,has:!!m.title,live:/live/i.test(m.kind||'')};drawTimeline();
-  if(document.activeElement!==$('#pname'))$('#pname').value=p.name||'';
-  if(document.activeElement!==$('#proom'))$('#proom').value=p.show_sonos===false?'__off':(p.apple_room?('a:'+p.apple_room):(p.sonos_room?('s:'+p.sonos_room):''));
-  $('#devInfo').textContent='Address '+p.ip+'  -  MAC '+p.mac+'  -  firmware '+p.fw;}
+  $('#devInfo').textContent=(p.name?p.name+'  -  ':'')+'Address '+p.ip+'  -  MAC '+p.mac+'  -  firmware '+p.fw;}
 function ctl(a){const p=cur();if(!p)return toast('No SLIMP3 connected yet',1);post('api/control',{mac:p.mac,action:a}).then(poll).catch(e=>toast(e.message,1));}
 /* volume: a short up/down control, 5 per press */
 function volStep(d){const p=cur();if(!p)return;const v=Math.max(0,Math.min(100,(S.volTarget!=null?S.volTarget:S.vol!=null?S.vol:p.volume)+d));
@@ -223,23 +205,12 @@ function seekDone(v){const p=cur();if(!p)return;
   post('api/control',{mac:p.mac,action:'seek',value:+v}).then(()=>{if(S.tl){S.tl.pos=+v;S.tl.at=Date.now();}setTimeout(()=>{S.seeking=false;poll();},800);}).catch(e=>{S.seeking=false;toast(e.message,1);});}
 setInterval(drawTimeline,500);
 
-/* ---------- player settings (auto-saved) ---------- */
-function setSaved(id,t,ok){const e=$(id);e.textContent=t;e.className='saved'+(ok?' ok':'');}
-function nameTyped(){setSaved('#nameSaved','Saving…');clearTimeout(nameT);nameT=setTimeout(saveName,700);}
-async function saveName(){const p=cur();if(!p)return;try{await post('api/player',{mac:p.mac,name:$('#pname').value.trim()});setSaved('#nameSaved','Saved',1);poll();}catch(e){setSaved('#nameSaved',e.message);}}
-async function roomChanged(){const p=cur(),v=$('#proom').value;if(!p)return;setSaved('#roomSaved','Saving…');
-  const b={mac:p.mac,show_sonos:v!=='__off',sonos_room:'',apple_room:''};
-  if(v.startsWith('s:'))b.sonos_room=v.slice(2);else if(v.startsWith('a:'))b.apple_room=v.slice(2);
-  try{await post('api/player',b);setSaved('#roomSaved','Saved',1);poll();}catch(e){setSaved('#roomSaved',e.message);}}
+/* ---------- Sonos, HomePod and Google Cast (read only) ---------- */
 async function loadSonos(){
   try{S.sonos=await api('api/sonos');}catch(e){}
   try{S.apple=await api('api/apple');}catch(e){S.apple={devices:[]};}
-  const rooms=(S.sonos&&S.sonos.rooms)||[],pods=(S.apple&&S.apple.devices)||[],sel=$('#proom'),keep=sel.value;
-  sel.innerHTML='<option value="">Anything that is playing</option>'
-    +(rooms.length?'<optgroup label="Sonos">'+rooms.map(r=>'<option value="s:'+esc(r)+'">'+esc(r)+'</option>').join('')+'</optgroup>':'')
-    +(pods.length?'<optgroup label="HomePod">'+pods.map(d=>'<option value="a:'+esc(d.name)+'">'+esc(d.name)+' ('+esc(d.model)+')</option>').join('')+'</optgroup>':'')
-    +'<option value="__off">Do not show Sonos or HomePod</option>';
-  sel.value=keep;
+  try{S.cast=await api('api/cast');}catch(e){S.cast={devices:[]};}
+  const rooms=(S.sonos&&S.sonos.rooms)||[],pods=(S.apple&&S.apple.devices)||[],cast=(S.cast&&S.cast.devices)||[];
   const parts=[];
   parts.push(rooms.length?'Sonos: '+rooms.join(', '):(S.enabled===false?'Sonos support is switched off.':'No Sonos speakers found. If you have Sonos, they may be on another network segment; add one address under "sonos_ips" in the app configuration.'));
   if(S.apple&&S.apple.enabled===false)parts.push('HomePod support is switched off.');
@@ -247,6 +218,11 @@ async function loadSonos(){
   else if(!pods.length)parts.push('No HomePods found. They must be on the same network segment as Home Assistant.');
   else{parts.push('HomePods (the app only reads what they are playing; no pairing is needed):');
     pods.forEach(d=>parts.push('\u2022 '+d.name+' ('+d.model+'): '+(d.error?'cannot connect: '+d.error:!d.connected?'not listening right now (only listens while a player is idle and set to show it)':(d.state?d.state.toLowerCase():'no report yet')+(d.title?', '+(d.app?d.app+': ':'')+[d.artist,d.title].filter(Boolean).join(' - '):'')+(d.age!=null?' (updated '+d.age+' s ago)':''))));}
+  if(S.cast&&S.cast.enabled===false)parts.push('Google Cast support is switched off.');
+  else if(!cast.length)parts.push('No Google Home or Cast devices found.'+(S.cast&&S.cast.error?' (automatic discovery is unavailable: '+S.cast.error+')':''));
+  else{parts.push('Google Home, Nest and other Cast devices (the app only reads what they are playing):');
+    cast.forEach(d=>parts.push('\u2022 '+d.name+' ('+d.model+'): '+(d.error?'cannot connect: '+d.error:!d.connected?'not listening right now (only listens while a player is idle and set to show it)':(d.state?d.state.toLowerCase():'no report yet')+(d.title?', '+(d.app?d.app+': ':'')+[d.artist,d.title].filter(Boolean).join(' - '):'')+(d.age!=null?' (updated '+d.age+' s ago)':''))));}
+  parts.push('To name a player or choose which speaker it shows, use the players list in this app\'s Configuration tab (name, sonos_room, apple_room, cast_room), using the names listed above.');
   $('#sonosInfo').innerHTML=parts.map(x=>'<div style="margin-bottom:4px">'+esc(x)+'</div>').join('');
   renderChips();}
 
@@ -316,6 +292,5 @@ function play(b){const p=cur();if(!p)return toast('No SLIMP3 connected yet',1);b
   post('api/play',b).then(r=>{toast(playedMsg(r));poll();}).catch(e=>toast(e.message,1));}
 function playAll(){play({container:S.stack[S.stack.length-1].id});}
 
-if(location.hash==='#settings')$('#settings').open=true;
 poll();setInterval(poll,1500);loadSonos();setInterval(loadSonos,15000);loadSources();
 </script></body></html>

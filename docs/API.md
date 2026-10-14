@@ -19,11 +19,12 @@ For local development, set `SLIMP3_ALLOW_ALL=1` to lift the address check.
     "duration": 188.0, "seekable": true, "sleep_mode": false,
     "meta": {"title": "...", "artist": "...", "album": "..."},
     "fw": "2.2", "configured": true,
+    "sonos_room": "", "apple_room": "", "cast_room": "Bedroom", "show_sonos": true,
     "index": 3, "queue_len": 31
   }],
   "sources": [{"id": "1a2b3c4d", "name": "Plex Media Server: <host>"}],
-  "heard": [{"ip": "192.168.1.50", "ago": 12}], "uptime": 340, "udp_port": 3483, "sonos_enabled": true, "version": "0.11.0",
-  "instance_id": "e70a23d7...", "integration": {"installed": true, "version": "0.8.0", "restart_needed": false}
+  "heard": [{"ip": "192.168.1.50", "ago": 12}], "uptime": 340, "udp_port": 3483, "sonos_enabled": true, "apple_enabled": true, "cast_enabled": true, "version": "0.12.0",
+  "instance_id": "e70a23d7...", "integration": {"installed": true, "version": "0.12.0", "restart_needed": false}
 }
 ```
 
@@ -78,16 +79,6 @@ should not show a track count for them. `GET /api/browse` also returns `live` (t
 `value` is used by `volume` (0-100) and `seek` (seconds from the start of the track; clamped to just before the end). `seek` returns 400 if the
 item is live or its length is not known. `identify` runs the boot screens (IP, MAC, prompts) on that player. Returns the player's status.
 
-## `POST /api/player`
-
-```json
-{"mac": "...", "name": "Den", "sonos_room": "Living Room", "apple_room": "", "show_sonos": true}
-```
-
-Saves a player's name and Sonos room (any subset of the fields) and applies it immediately. Saved values
-override the options file. An empty `sonos_room` means any playing room; `show_sonos: false` turns the Sonos
-display off for that player.
-
 ## `GET /api/apple`
 
 ```json
@@ -99,6 +90,16 @@ The HomePods found on the network. `connected`, `state` (`PLAYING`, `PAUSED`, `S
 HomePod last reported) are filled only while the app is connected to that HomePod, which happens only while a SLIMP3 is idle and wants to show
 it. `error` is the last reason a connection failed. At the top level, `available` is false when the HomePod library could not be loaded and `error`
 says why.
+
+## `GET /api/cast`
+
+```json
+{"enabled": true, "error": "",
+ "devices": [{"name": "Bedroom", "model": "Google Home Mini", "connected": true, "state": "PLAYING",
+              "app": "Spotify", "artist": "...", "title": "...", "age": 2, "error": ""}]}
+```
+
+The Google Cast devices found on the network (automatically, plus any listed in `cast_ips`). `connected`, `state`, `app`, `artist`, `title` and `age` are filled only while the app is connected to that device, which happens only while a SLIMP3 is idle and wants to show it. `error` at the top level says why automatic discovery is unavailable, if it is.
 
 ## `GET /api/sonos`
 
