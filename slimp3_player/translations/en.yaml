@@ -14,10 +14,13 @@ configuration:
     name: Sonos player addresses (optional)
     description: >-
       Sonos players are found automatically. Only add an address here if discovery cannot see them
-      (for example when they are on another network segment). Read-only: the app never controls Sonos.
+      (for example when they are on another network segment). An address keeps Sonos polling on even if the
+      automatic search is off. Read-only: the app never controls Sonos.
   sonos_discovery:
     name: Find Sonos players automatically
-    description: Search the network for Sonos players. Turn off to use only the addresses above.
+    description: >-
+      Search the network for Sonos players. Turning this off stops only the search: players listed under sonos_ips are
+      still polled. To switch Sonos off completely, turn this off and leave sonos_ips empty.
   sonos_display:
     name: Show Sonos on the display
     description: >-
@@ -41,7 +44,8 @@ configuration:
     name: Find Google Home and Cast devices automatically
     description: >-
       Show what a Google Home, Nest or other Cast device is playing on a SLIMP3 display, like Sonos. Devices are found
-      on the network; no Google account or login is used, and the app only reads what they are playing.
+      on the network; no Google account or login is used, and the app only reads what they are playing. Turning
+      this off switches Cast off completely, including any cast_ips.
   cast_ips:
     name: Google Cast device addresses (optional)
     description: >-
@@ -50,10 +54,9 @@ configuration:
   sleep_mode:
     name: Sleep mode (optional)
     description: >-
-      When what is playing looks like sleep sounds (white noise, rain, ocean and similar), the display shows it for
-      10 seconds, then "Going to sleep" with a 10 second countdown, then turns off for as long as that plays. It applies
-      to music on a player and to Sonos or HomePod shown on its display. The words that count are the keywords below.
-      Set sleep_mode in a players entry to turn it on or off for one player.
+      For sleep sounds (white noise, rain, ocean and similar): the display shows them for 10 seconds, counts down
+      10 seconds with "Going to sleep", then stays dark while they play. Works for music and for Sonos, HomePod or
+      Cast speakers shown on the display. Keywords are below. A players entry can set sleep_mode per player.
   sleep_keywords:
     name: Sleep sound keywords (optional)
     description: >-

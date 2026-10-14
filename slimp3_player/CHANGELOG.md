@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.12.3
+- Configuration tab: `sonos_discovery` now says that turning it off stops only the search and that `sonos_ips` are still polled, and
+  `cast_discovery` says it switches Cast off completely. The sleep mode description is shorter and mentions Cast.
+
 ## 0.12.2
 - **Less polling.** Sonos is polled every 3 seconds only while a wanted room is playing (and for a minute after), otherwise every 10 seconds.
   A HomePod is checked directly every 10 seconds only while it is playing, otherwise every 60 seconds; push updates are unchanged.

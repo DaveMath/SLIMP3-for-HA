@@ -9,9 +9,9 @@ All settings live on the app's **Configuration** tab in Home Assistant (stored i
 | `dlna_servers` | `[]` | DLNA/UPnP media server description URLs to write into the configuration. Servers on your network are found automatically and added with a click on the page's Info section, so this is only for people who want them written down. For Plex's DLNA server: `http://<host>:32469/DeviceDescription.xml`. |
 | `player_ips` | `[]` | SLIMP3 addresses. Only needed if a player does not find the app by broadcast (another VLAN). The app sends these addresses a hello until the player registers. |
 | `sonos_ips` | `[]` | Sonos player addresses. Only needed if discovery cannot see them. One address is enough. |
-| `sonos_discovery` | `true` | Search the network for Sonos players. `false` uses only `sonos_ips`. |
+| `sonos_discovery` | `true` | Search the network for Sonos players. `false` stops only the search: players in `sonos_ips` are still polled. To switch Sonos off completely, set `false` and leave `sonos_ips` empty. |
 | `apple_discovery` | `true` | Find HomePods and show what they play. |
-| `cast_discovery` | `true` | Find Google Home, Nest and other Cast devices and show what they play. |
+| `cast_discovery` | `true` | Find Google Home, Nest and other Cast devices and show what they play. `false` switches Cast off completely, including `cast_ips`. |
 | `cast_ips` | `[]` | Cast device addresses. Only needed if discovery cannot see them. |
 | `sonos_display` | `true` | Default for `show_sonos`: show Sonos, HomePod and Cast speakers on the display while the SLIMP3 is idle. |
 | `sleep_mode` | `false` | Turn the display off for sleep sounds, for every player. See [SLEEP-MODE.md](SLEEP-MODE.md). |
