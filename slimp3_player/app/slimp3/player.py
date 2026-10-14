@@ -26,6 +26,9 @@ class Player:
         self._np_task = None
         self._runner = None
         self.sonos_task = None
+        self.name = ""
+        self.sonos_room = ""
+        self.show_sonos = True
         self.meta = {}
         self.queue = []
         self.index = -1
@@ -48,7 +51,7 @@ class Player:
 
     def status(self):
         state = self.stream.state if self.stream else "stop"
-        return {"mac": self.mac, "ip": self.addr[0], "state": state,
+        return {"mac": self.mac, "name": self.name, "ip": self.addr[0], "state": state,
                 "position": round(self.position(), 1), "volume": self.volume,
                 "meta": self.meta if self.stream else {}, "index": self.index,
                 "queue_len": len(self.queue)}

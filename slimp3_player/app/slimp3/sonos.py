@@ -66,37 +66,51 @@ def parse_stream_content(s):
     return "", s.strip()
 
 
-def poll_zone(ip):
-    """Blocking. Returns a state dict for the group that `ip` belongs to."""
-    z = _field(_soap(ip, ZGT, "GetZoneGroupState"), "ZoneGroupState")
-    root = ET.fromstring(z)
-    loc, names = {}, {}
-    for m in root.iter("ZoneGroupMember"):
-        mip = re.search(r"//([\d.]+):", m.get("Location", ""))
-        if mip:
-            loc[m.get("UUID")] = mip.group(1)
-            names[m.get("UUID")] = m.get("ZoneName", "")
-    coord = ip
-    for g in root.iter("ZoneGroup"):
-        if ip in [loc.get(m.get("UUID")) for m in g.iter("ZoneGroupMember")]:
-            coord = loc.get(g.get("Coordinator"), ip)
-            room = names.get(g.get("Coordinator"), "")
+def poll_system(seed_ips):
+    """Blocking. Ask the first reachable seed for the household topology, then read the
+    state of every group's coordinator. Returns a list of group dicts."""
+    last = None
+    for seed in seed_ips:
+        try:
+            z = _field(_soap(seed, ZGT, "GetZoneGroupState"), "ZoneGroupState")
             break
+        except Exception as e:  # try the next seed
+            last = e
     else:
-        room = ""
+        raise last or RuntimeError("no Sonos address configured")
+    root = ET.fromstring(z)
+    groups = []
+    for g in root.iter("ZoneGroup"):
+        members = [m for m in g.iter("ZoneGroupMember") if m.get("Invisible") != "1"]
+        coord = next((m for m in g.iter("ZoneGroupMember") if m.get("UUID") == g.get("Coordinator")), None)
+        ip = re.search(r"//([\d.]+):", coord.get("Location", "")) if coord is not None else None
+        if not ip:
+            continue
+        group = {"coordinator": ip.group(1), "room": coord.get("ZoneName", ""),
+                 "rooms": [m.get("ZoneName", "") for m in members], "state": "",
+                 "station": "", "artist": "", "title": "", "album": "", "uri": ""}
+        try:
+            group.update(_read_group(group["coordinator"]))
+        except Exception:
+            pass
+        groups.append(group)
+    return groups
+
+
+def _read_group(cip):
     inst = "<InstanceID>0</InstanceID>"
-    state = _field(_soap(coord, AVT, "GetTransportInfo", inst), "CurrentTransportState")
-    media = _soap(coord, AVT, "GetMediaInfo", inst)
+    state = _field(_soap(cip, AVT, "GetTransportInfo", inst), "CurrentTransportState")
+    if state != "PLAYING":
+        return {"state": state}
+    media = _soap(cip, AVT, "GetMediaInfo", inst)
     station = parse_didl(_field(media, "CurrentURIMetaData"))
-    pos = _soap(coord, AVT, "GetPositionInfo", inst)
-    track = parse_didl(_field(pos, "TrackMetaData"))
+    track = parse_didl(_field(_soap(cip, AVT, "GetPositionInfo", inst), "TrackMetaData"))
     artist, title = track.get("creator", ""), track.get("title", "")
     if track.get("stream"):
         a, t = parse_stream_content(track["stream"])
         artist, title = a or artist, t or title
     is_radio = "audioBroadcast" in station.get("cls", "")
-    return {"ip": ip, "coordinator": coord, "room": room, "state": state,
-            "station": station.get("title", "") if is_radio else "",
+    return {"state": state, "station": station.get("title", "") if is_radio else "",
             "artist": artist, "title": title if title != station.get("title") else "",
             "album": track.get("album", ""), "uri": _field(media, "CurrentURI")}
 
@@ -104,23 +118,31 @@ def poll_zone(ip):
 class SonosMonitor:
     def __init__(self, ips, log=print):
         self.ips, self.log = list(ips), log
-        self.states = {}
+        self.groups = []
+        self._ok = True
 
     async def run(self, interval=2.0):
         loop = asyncio.get_event_loop()
         while True:
-            for ip in self.ips:
-                try:
-                    self.states[ip] = await loop.run_in_executor(None, poll_zone, ip)
-                except Exception as e:
-                    if ip in self.states:
-                        self.log("sonos %s unreachable: %s" % (ip, e))
-                    self.states.pop(ip, None)
+            try:
+                self.groups = await loop.run_in_executor(None, poll_system, self.ips)
+                if not self._ok:
+                    self.log("sonos reachable again")
+                self._ok = True
+            except Exception as e:
+                if self._ok:
+                    self.log("sonos unreachable: %s" % e)
+                self._ok, self.groups = False, []
             await asyncio.sleep(interval)
 
-    def active(self):
-        """First zone group that is playing, else None."""
-        for st in self.states.values():
-            if st["state"] == "PLAYING":
-                return st
+    def rooms(self):
+        return sorted(r for g in self.groups for r in g["rooms"])
+
+    def active(self, room=None):
+        """The playing group that contains `room` (case-insensitive), or any playing group if room is empty."""
+        for g in self.groups:
+            if g["state"] != "PLAYING":
+                continue
+            if not room or room.lower() in [r.lower() for r in g["rooms"]]:
+                return g
         return None

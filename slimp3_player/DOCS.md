@@ -4,29 +4,45 @@ Play music from Plex/DLNA servers on a SLIMP3 network music player, or show what
 
 Visit [SLIMP3 Player](https://github.com/DaveMath/SLIMP3-for-HA) page for more details. Written by @GGDM on Krystalize.AI local harness. Get your own local private LLM.
 
-Runs the server side for a Slim Devices SLIMP3 network music player. The player
-finds this app by broadcast on UDP 3483, so the app uses the host network.
-
 ## Setup
 
-1. Install and start the app.
-2. In the app configuration, add your DLNA/UPnP media server description URL(s).
-   For Plex's DLNA server this is `http://<host>:32469/DeviceDescription.xml`.
-3. Open **SLIMP3** in the sidebar, pick a source, browse, and play.
+1. Set `dlna_servers` to your media server's description URL. For Plex's DLNA server:
+   `http://<host>:32469/DeviceDescription.xml`.
+2. Optional: set `sonos_ips` to the address of any one Sonos player.
+3. Start the app and open **SLIMP3** in the sidebar.
 
-Plex (and other servers running in Docker) may advertise internal addresses in
-stream URLs. The app rewrites them to the address it used to reach the server.
+The SLIMP3 finds this app by broadcast on UDP 3483, so the app uses the host network. If your player
+is on another VLAN, add its address to `player_ips`.
+
+## Several rooms
+
+Add one `players` entry per SLIMP3, matched by MAC address (shown in the app log and the sidebar page):
+
+```yaml
+players:
+  - mac: "00:04:20:12:34:56"
+    name: Kitchen
+    sonos_room: Kitchen
+  - mac: "00:04:20:65:43:21"
+    name: Garage
+    show_sonos: false
+    volume: 55
+```
+
+`sonos_room` is the Sonos room that player mirrors. Room names are listed at `/api/sonos`.
 
 ## Display
 
-With the spectrum analyzer on, the top line alternates between artist and title
-(scrolling when longer than 40 characters) and the bottom line shows a 40-band
-analyzer. With it off, the top line shows the artist and the bottom line the title.
+While playing music from this app: top line alternates artist and title, bottom line is a 40-band
+spectrum analyzer (`spectrum: false` shows artist and title instead). When the SLIMP3 is idle and its
+Sonos room is playing: top line is the station (for example `CH 55 - SiriusXM Chill`), bottom line is
+`Artist - Title`. Text that fits is shown still; long text scrolls.
 
-## Sonos now-playing
+The app only reads from Sonos. It cannot get Sonos audio, so there is no spectrum for Sonos.
 
-Add the IP address of any Sonos player to `sonos_ips`. When the SLIMP3 is not playing
-its own music and a Sonos group is playing, the display shows the station name on the top
-line (for example `CH 55 - SiriusXM Chill`) and `Artist - Title` scrolling continuously on
-the bottom line. The app only reads from Sonos. It cannot get the audio itself, so the
-spectrum analyzer is available only for music this app plays.
+## More
+
+Full documentation: configuration, how it works, API and troubleshooting are in the
+[docs folder](https://github.com/DaveMath/SLIMP3-for-HA/tree/main/docs).
+
+Licensed GPL-2.0-only. Derived in part from Lyrion Music Server.

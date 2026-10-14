@@ -12,13 +12,19 @@ configuration:
   sonos_ips:
     name: Sonos player addresses
     description: >-
-      IP address of one or more Sonos players. The app finds each group's coordinator
-      and reads what it is playing (read-only; it never controls Sonos).
+      IP address of any one Sonos player (add a second as a backup). The app reads the whole
+      household from it, finds each group's coordinator and reads what it is playing. Read-only.
   sonos_display:
     name: Show Sonos on the display
     description: >-
       When the SLIMP3 is idle and a Sonos group is playing, show the station on the top
       line (for example "CH 55 - SiriusXM Chill") and artist and title scrolling on the bottom line.
+  players:
+    name: Per-player settings
+    description: >-
+      One entry per SLIMP3, matched by MAC address (shown in the app log and in the sidebar page).
+      name is a label, sonos_room is the Sonos room this player mirrors, show_sonos turns the Sonos
+      display off for this player, and volume, spectrum and sync_ms override the defaults below.
   default_volume:
     name: Default volume
     description: Volume (0-100) used when a player first connects.

@@ -60,8 +60,21 @@ class App:
         }
         self.server.on_new_player = self._new_player
         self.sonos = SonosMonitor(opts.get("sonos_ips") or [], log)
+        self.cfg = {str(c.get("mac", "")).lower(): c for c in (opts.get("players") or [])}
 
     def _new_player(self, p):
+        c = self.cfg.get(p.mac.lower(), {})
+        p.name = c.get("name") or ""
+        p.sonos_room = c.get("sonos_room") or ""
+        p.show_sonos = c.get("show_sonos", self.opts.get("sonos_display", True))
+        if "volume" in c:
+            p.volume = int(c["volume"])
+        if "spectrum" in c:
+            p.use_spectrum = bool(c["spectrum"])
+        if "sync_ms" in c:
+            p.sync_ms = int(c["sync_ms"])
+        if not c:
+            log("player %s has no entry in 'players'; using defaults" % p.mac)
         p.on_ir = lambda code: log("IR 0x%s" % code)
         p.show("SLIMP3 server ready", "Home Assistant")
 
@@ -141,21 +154,21 @@ class App:
         return web.json_response(p.status())
 
     async def sonos_state(self, req):
-        return web.json_response({"zones": list(self.sonos.states.values())})
+        return web.json_response({"rooms": self.sonos.rooms(), "groups": self.sonos.groups})
 
     async def sonos_display_loop(self):
-        """Show what Sonos is playing while the SLIMP3 itself is idle."""
+        """Per SLIMP3: mirror its Sonos room's group while the SLIMP3 itself is idle."""
         while True:
             await asyncio.sleep(1)
-            if not self.opts.get("sonos_display", True):
-                continue
-            playing = self.sonos.active() is not None
             for p in self.server.players.values():
                 idle = p.stream is None and p._runner is None
-                if playing and idle and not p.sonos_task:
-                    p.sonos_task = asyncio.ensure_future(SonosNowPlaying(p, self.sonos.active).run())
-                    log("showing Sonos now-playing on %s" % p.mac)
-                elif p.sonos_task and not (playing and idle):
+                room = p.sonos_room
+                want = idle and p.show_sonos and self.sonos.active(room) is not None
+                if want and not p.sonos_task:
+                    p.sonos_task = asyncio.ensure_future(
+                        SonosNowPlaying(p, lambda r=room: self.sonos.active(r)).run())
+                    log("showing Sonos (%s) on %s" % (room or "any room", p.name or p.mac))
+                elif p.sonos_task and not want:
                     p.cancel_sonos()
                     if idle:
                         p.show("SLIMP3 server ready", "Home Assistant")
