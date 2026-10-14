@@ -155,7 +155,10 @@ class AppleMonitor:
             app = ""
         self.devices[name] = {
             "station": "", "room": name, "app": app,
-            "state": "PLAYING" if state in ("Playing", "Seeking", "Loading") else ("PAUSED" if state == "Paused" else "STOPPED"),
+            # "Loading" is not playing: a HomePod can sit in it for hours with no track (seen with the Podcasts app), and
+            # counting it as playing left its name on the display.
+            "state": "PLAYING" if state in ("Playing", "Seeking") else ("PAUSED" if state == "Paused" else (
+                "LOADING" if state == "Loading" else "STOPPED")),
             "artist": p.artist or "", "title": p.title or "", "album": p.album or "",
             "source": self.model(name), "uri": "", "kind": "apple"}
 

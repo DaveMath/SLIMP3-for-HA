@@ -36,6 +36,7 @@ HomePods and HomePod minis are found with Bonjour (the discovery the Home app us
 
 - The app connects **only while a SLIMP3 is idle and wants a HomePod**, and only to the HomePods it wants. Starting playback on the SLIMP3 closes the connections.
 - Besides push updates, the app asks a HomePod that is playing directly every 10 seconds (every 60 seconds otherwise), so a stop is not missed.
+- A HomePod stuck in `loading` with no track (seen with the Podcasts app) is not treated as playing, so it never holds the display.
 - Info shows what each HomePod reports. If a HomePod reports `paused` (Ambient Sounds such as White Noise can do this), the SLIMP3 shows nothing for it, and Info shows exactly what the HomePod said.
 - pyatv imports a compiled audio package (`miniaudio`) that it uses only to stream audio *to* speakers. It has no prebuilt version for the app's container and this app never streams audio, so a small stand-in module (`app/stubs/miniaudio.py`) satisfies the import. The container installs pyatv from prebuilt packages only (no compiler); if that install fails, the app still runs without HomePod support, and Info says why.
 - Cost: with two HomePods connected and idle, about 0.10% of a core and 5 MB of memory (six TCP connections). With nothing connected, about 0.03%.

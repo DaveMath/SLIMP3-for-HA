@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.12.4
+- A HomePod that reports `Loading` is no longer treated as playing. A HomePod mini sitting in that state with no track (seen with the Podcasts
+  app) kept its name on the display after the music was turned off elsewhere. Info shows it as `loading`.
+
 ## 0.12.3
 - Configuration tab: `sonos_discovery` now says that turning it off stops only the search and that `sonos_ips` are still polled, and
   `cast_discovery` says it switches Cast off completely. The sleep mode description is shorter and mentions Cast.
