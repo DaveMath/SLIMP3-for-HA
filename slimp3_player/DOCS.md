@@ -18,3 +18,11 @@ stream URLs. The app rewrites them to the address it used to reach the server.
 With the spectrum analyzer on, the top line alternates between artist and title
 (scrolling when longer than 40 characters) and the bottom line shows a 40-band
 analyzer. With it off, the top line shows the artist and the bottom line the title.
+
+## Sonos now-playing
+
+Add the IP address of any Sonos player to `sonos_ips`. When the SLIMP3 is not playing
+its own music and a Sonos group is playing, the display shows the station name on the top
+line (for example `CH 55 - SiriusXM Chill`) and `Artist - Title` scrolling continuously on
+the bottom line. The app only reads from Sonos. It cannot get the audio itself, so the
+spectrum analyzer is available only for music this app plays.

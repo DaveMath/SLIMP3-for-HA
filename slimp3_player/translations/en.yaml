@@ -9,6 +9,16 @@ configuration:
     description: >-
       Only needed if a player does not find the server by itself. Leave empty
       for normal broadcast discovery.
+  sonos_ips:
+    name: Sonos player addresses
+    description: >-
+      IP address of one or more Sonos players. The app finds each group's coordinator
+      and reads what it is playing (read-only; it never controls Sonos).
+  sonos_display:
+    name: Show Sonos on the display
+    description: >-
+      When the SLIMP3 is idle and a Sonos group is playing, show the station on the top
+      line (for example "CH 55 - SiriusXM Chill") and artist and title scrolling on the bottom line.
   default_volume:
     name: Default volume
     description: Volume (0-100) used when a player first connects.

@@ -20,6 +20,8 @@ map:
 options:
   dlna_servers: []
   player_ips: []
+  sonos_ips: []
+  sonos_display: true
   default_volume: 40
   spectrum: true
   display_fps: 8
@@ -29,6 +31,9 @@ schema:
     - url
   player_ips:
     - str
+  sonos_ips:
+    - str
+  sonos_display: bool
   default_volume: "int(0,100)"
   spectrum: bool
   display_fps: "int(1,15)"

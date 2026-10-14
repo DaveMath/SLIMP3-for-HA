@@ -84,3 +84,46 @@ class NowPlaying:
                 await asyncio.sleep(1.0 / self.fps)
         except asyncio.CancelledError:
             pass
+
+
+class Marquee:
+    """Always-scrolling line: the text repeats with a separator, never stops."""
+
+    def __init__(self, text, width=LINE_LEN, speed=6.0, gap="   *   "):
+        t = vfd_safe(text)
+        self.width, self.speed = width, speed
+        self.loop = (t + gap) if t else ""
+
+    def line(self, t):
+        if not self.loop:
+            return ""
+        n = len(self.loop)
+        off = int(t * self.speed) % n
+        return (self.loop * (self.width // n + 3))[off:off + self.width]
+
+
+class SonosNowPlaying:
+    """Mirrors what a Sonos group is playing: station (e.g. 'CH 55 - SiriusXM Chill')
+    on the top line, 'Artist - Title' scrolling continuously on the bottom line."""
+
+    def __init__(self, player, get_state, fps=5):
+        self.player, self.get_state, self.fps = player, get_state, fps
+
+    async def run(self):
+        t0, key, top, bottom = time.time(), None, None, None
+        try:
+            while True:
+                st = self.get_state()
+                if st:
+                    new = (st["station"], st["room"], st["artist"], st["title"], st["album"])
+                    if new != key:
+                        key, t0 = new, time.time()
+                        head = st["station"] or st["room"] or "Sonos"
+                        body = " - ".join(x for x in (st["artist"], st["title"]) if x) or st["album"]
+                        top, bottom = Ticker([head]), Marquee(body or head)
+                if top:
+                    now = time.time() - t0
+                    self.player._send(display_packet(top.line(now), bottom.line(now)))
+                await asyncio.sleep(1.0 / self.fps)
+        except asyncio.CancelledError:
+            pass

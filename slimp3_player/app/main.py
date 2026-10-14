@@ -7,7 +7,9 @@ import time
 
 from aiohttp import web
 
+from slimp3.nowplaying import SonosNowPlaying
 from slimp3.server import Server
+from slimp3.sonos import SonosMonitor
 from slimp3.upnp import MediaServer
 
 OPTS_PATH = os.environ.get("SLIMP3_OPTIONS", "/data/options.json")
@@ -41,6 +43,7 @@ class App:
             "use_spectrum": bool(opts.get("spectrum", True)),
         }
         self.server.on_new_player = self._new_player
+        self.sonos = SonosMonitor(opts.get("sonos_ips") or [], log)
 
     def _new_player(self, p):
         p.on_ir = lambda code: log("IR 0x%s" % code)
@@ -121,6 +124,26 @@ class App:
             raise web.HTTPBadRequest(text="unknown action")
         return web.json_response(p.status())
 
+    async def sonos_state(self, req):
+        return web.json_response({"zones": list(self.sonos.states.values())})
+
+    async def sonos_display_loop(self):
+        """Show what Sonos is playing while the SLIMP3 itself is idle."""
+        while True:
+            await asyncio.sleep(1)
+            if not self.opts.get("sonos_display", True):
+                continue
+            playing = self.sonos.active() is not None
+            for p in self.server.players.values():
+                idle = p.stream is None and p._runner is None
+                if playing and idle and not p.sonos_task:
+                    p.sonos_task = asyncio.ensure_future(SonosNowPlaying(p, self.sonos.active).run())
+                    log("showing Sonos now-playing on %s" % p.mac)
+                elif p.sonos_task and not (playing and idle):
+                    p.cancel_sonos()
+                    if idle:
+                        p.show("SLIMP3 server ready", "Home Assistant")
+
     async def index(self, req):
         return web.FileResponse(os.path.join(WEB, "index.html"))
 
@@ -130,11 +153,15 @@ class App:
         app.add_routes([
             web.get("/", self.index), web.get("/api/state", self.state),
             web.get("/api/browse", self.browse), web.post("/api/play", self.play),
-            web.post("/api/control", self.control)])
+            web.post("/api/control", self.control), web.get("/api/sonos", self.sonos_state)])
         runner = web.AppRunner(app)
         await runner.setup()
         await web.TCPSite(runner, "0.0.0.0", PORT).start()
-        log("web UI/API on port %d; %d source(s) configured" % (PORT, len(self.sources)))
+        if self.sonos.ips:
+            asyncio.ensure_future(self.sonos.run())
+            asyncio.ensure_future(self.sonos_display_loop())
+        log("web UI/API on port %d; %d source(s), %d Sonos zone(s) configured"
+            % (PORT, len(self.sources), len(self.sonos.ips)))
         await asyncio.Event().wait()
 
 

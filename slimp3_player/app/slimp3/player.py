@@ -25,6 +25,7 @@ class Player:
         self.spectrum = None
         self._np_task = None
         self._runner = None
+        self.sonos_task = None
         self.meta = {}
         self.queue = []
         self.index = -1
@@ -95,7 +96,13 @@ class Player:
                 pass
 
     # ---- single-track playback --------------------------------------
+    def cancel_sonos(self):
+        if self.sonos_task:
+            self.sonos_task.cancel()
+            self.sonos_task = None
+
     async def play(self, source, title="", artist="", album="", duration=None):
+        self.cancel_sonos()
         await self._halt()
         cmd = [FFMPEG, "-nostdin", "-v", "error", "-i", source]
         if duration:
