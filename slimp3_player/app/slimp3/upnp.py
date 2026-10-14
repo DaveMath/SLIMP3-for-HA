@@ -130,6 +130,14 @@ def item_kind(cls):
     return "Live TV" if "videoBroadcast" in c else ("Live radio" if "audioBroadcast" in c else "")
 
 
+_PLACEHOLDERS = {"", "unknown", "[unknown]", "<unknown>", "unknown artist", "unknown album"}
+
+
+def _clean(v):
+    """Servers fill empty artist/album fields with filler such as 'Unknown'; treat those as no value."""
+    return None if (v or "").strip().lower() in _PLACEHOLDERS else v
+
+
 def parse_didl(xml_text):
     if not xml_text:
         return []
@@ -147,8 +155,8 @@ def parse_didl(xml_text):
             "title": el.findtext("dc:title", namespaces=NS),
             "class": el.findtext("upnp:class", namespaces=NS),
             "kind": item_kind(el.findtext("upnp:class", namespaces=NS)),
-            "artist": el.findtext("upnp:artist", namespaces=NS) or el.findtext("dc:creator", namespaces=NS),
-            "album": el.findtext("upnp:album", namespaces=NS),
+            "artist": _clean(el.findtext("upnp:artist", namespaces=NS) or el.findtext("dc:creator", namespaces=NS)),
+            "album": _clean(el.findtext("upnp:album", namespaces=NS)),
             "art": el.findtext("upnp:albumArtURI", namespaces=NS),
             "url": res.text if res is not None else None,
             "duration": res.get("duration") if res is not None else None,

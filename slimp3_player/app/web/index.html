@@ -150,7 +150,7 @@ input[type=text],select{font:inherit;color:var(--fg);background:var(--card);bord
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const P={back:'M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z',play:'M8 5v14l11-7z',pause:'M6 19h4V5H6zm8-14v14h4V5z',next:'M6 18l8.5-6L6 6v12zM16 6v12h2V6z',prev:'M6 6h2v12H6zm3.5 6l8.5 6V6z',stop:'M6 6h12v12H6z',folder:'M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z',note:'M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z',server:'M20 13H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1v-6c0-.55-.45-1-1-1zM7 19c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM20 3H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1zM7 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z',chev:'M9.4 6L8 7.4 12.6 12 8 16.6 9.4 18l6-6z',refresh:'M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z',vol:'M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0014 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02z'};
+const P={back:'M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z',play:'M8 5v14l11-7z',pause:'M6 19h4V5H6zm8-14v14h4V5z',next:'M6 18l8.5-6L6 6v12zM16 6v12h2V6z',prev:'M6 6h2v12H6zm3.5 6l8.5 6V6z',stop:'M6 6h12v12H6z',folder:'M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z',note:'M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z',server:'M20 13H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1v-6c0-.55-.45-1-1-1zM7 19c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM20 3H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1zM7 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z',chev:'M9.4 6L8 7.4 12.6 12 8 16.6 9.4 18l6-6z',tv:'M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z',refresh:'M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z',vol:'M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0014 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02z'};
 const ic=(n,sz)=>'<svg viewBox="0 0 24 24" width="'+(sz||20)+'" height="'+(sz||20)+'" fill="currentColor" aria-hidden="true"><path d="'+P[n]+'"/></svg>';
 let S={players:[],sel:'',sources:[],stack:[],items:[],sonos:null,heard:[],uptime:0,enabled:true,foundOnce:false};
 let toastT=null,nameT=null,volT=null;
@@ -189,7 +189,9 @@ function renderPlayer(){const p=cur(),none=!p;
   $('#npLabel').innerHTML=m.title?'Now playing'+(m.source?' <span class="src">'+esc(m.source)+'</span>':''):'Ready';
   const detail=[m.artist,m.album].filter(Boolean).join(' - ')||(m.kind&&m.source?m.kind+' from '+m.source:(m.source?'From '+m.source:''));
   $('#npSub').innerHTML=m.title?esc(detail)+'<span class="state">'+esc({play:'Playing',paused:'Paused',buffering:'Buffering',rebuffer:'Buffering'}[p.state]||p.state)+'</span>':'Choose something from the library below.';
-  $('#bPrev').innerHTML=ic('prev');$('#bNext').innerHTML=ic('next');$('#bStop').innerHTML=ic('stop');$('#volIc').innerHTML=ic('vol',18);
+  $('#bPrev').innerHTML=ic('prev');$('#bNext').innerHTML=ic('next');
+  {const live=!!(m.kind&&/live/i.test(m.kind)),w=live?(/radio/i.test(m.kind)?'station':'channel'):'track';
+   $('#bPrev').setAttribute('aria-label','Previous '+w);$('#bPrev').title='Previous '+w;$('#bNext').setAttribute('aria-label','Next '+w);$('#bNext').title='Next '+w;}$('#bStop').innerHTML=ic('stop');$('#volIc').innerHTML=ic('vol',18);
   $('#bPlay').innerHTML=ic(p.state==='paused'?'play':(m.title?'pause':'play'));
   if(S.volTarget==null)$('#volv').textContent=p.volume;S.vol=p.volume;
   if(document.activeElement!==$('#psleep'))$('#psleep').checked=!!p.sleep_mode;
@@ -255,10 +257,23 @@ async function removeSrv(id){try{await api('api/sources?id='+id,{method:'DELETE'
 function renderLibrary(){const root=!S.stack.length;
   $('#bBack').innerHTML=ic('back',18)+' Back';$('#bBack').classList.toggle('hidden',root);
   $('#crumbs').innerHTML=crumbsHtml();
-  const hasTracks=!root&&S.items.some(i=>!i.container);$('#bAll').classList.toggle('hidden',!hasTracks);$('#bAll').innerHTML=ic('play',16)+' Play all';
+  const hasTracks=!root&&!S.live&&S.items.some(i=>!i.container);$('#bAll').classList.toggle('hidden',!hasTracks);   /* no "Play all" for a channel list */
+  const more=!root&&S.total>S.items.length?'<div class="empty" style="padding:14px">Showing the first '+S.items.length+' of '+S.total+'. Open a sub-folder or search the server to narrow it.</div>':'';$('#bAll').innerHTML=ic('play',16)+' Play all';
   if(root){$('#list').innerHTML=S.sources.length?S.sources.map(s=>'<div class="item" tabindex="0" role="button" onclick="openServer(\''+s.id+'\')" onkeydown="if(event.key===\'Enter\')openServer(\''+s.id+'\')"><span class="ico">'+ic('server')+'</span><div class="t"><div>'+esc(s.name)+'</div><div class="s">Browse this server</div></div><span class="chev">'+ic('chev')+'</span></div>').join(''):
     '<div class="empty">'+ic('server',36)+'<h3>No music servers yet</h3><div>Find your Plex or other DLNA server and add it.</div><div style="margin-top:14px"><button class="btn primary" onclick="openSettings()">Find servers</button></div></div>';return;}
-  $('#list').innerHTML=S.items.length?S.items.map((it,n)=>'<div class="item" tabindex="0" role="button" onclick="openItem('+n+')" onkeydown="if(event.key===\'Enter\')openItem('+n+')"><span class="ico">'+ic(it.container?'folder':'note')+'</span><div class="t"><div>'+esc(it.title)+'</div><div class="s">'+esc([it.artist||it.kind||(it.container?'':'Track'),it.duration&&it.duration.replace(/^0:/,'').replace(/\.\d+$/,'')].filter(Boolean).join('  -  '))+'</div></div>'+(it.container?'<span class="chev">'+ic('chev')+'</span>':'<span class="chev">'+ic('play',18)+'</span>')+'</div>').join(''):'<div class="empty">This folder is empty.</div>';}
+  $('#list').innerHTML=S.items.length?S.items.map((it,n)=>'<div class="item" tabindex="0" role="button" onclick="openItem('+n+')" onkeydown="if(event.key===\'Enter\')openItem('+n+')"><span class="ico">'+ic(it.container?'folder':(it.kind==='Live TV'?'tv':'note'))+'</span><div class="t"><div>'+esc(it.title)+'</div><div class="s">'+esc([subOf(it),it.duration&&it.duration.replace(/^0:/,'').replace(/\.\d+$/,'')].filter(Boolean).join('  -  '))+'</div></div>'+(it.container?'<span class="chev">'+ic('chev')+'</span>':'<span class="chev">'+ic('play',18)+'</span>')+'</div>').join(''):'<div class="empty">This folder is empty.</div>';
+  if(more)$('#list').insertAdjacentHTML('beforeend',more);}
+/* Wording follows the source: channels and live radio are not "tracks", and a folder has no artist. */
+function subOf(it){
+  if(it.container){const n=+it.child_count;return n>0?n+(n===1?' item':' items'):'';}
+  if(it.artist)return it.artist;
+  if(it.kind)return it.kind;
+  const c=it.class||'';return /videoItem/.test(c)?'Video':/audioItem/.test(c)?'Track':'';}
+function nounFor(kind,n){return kind==='Live TV'?'channel':kind==='Live radio'?'station':'track';}
+function playedMsg(r){
+  if(r.live)return (r.kind==='Live TV'?'Playing channel ':'Playing ')+r.title;       /* never a count: the rest is just the list */
+  if(r.queued<=1)return 'Playing '+(r.title||'1 track');
+  return 'Playing '+(r.title?r.title+' and ':'')+r.remaining+' more '+nounFor(r.kind)+(r.remaining===1?'':'s');}
 function renderTile(){const i=S.integration;if(!i)return;const steps=[];
   $('#tileInfo').innerHTML=i.installed?'The SLIMP3 integration is installed in Home Assistant (version '+esc(i.version)+'). It makes each SLIMP3 a media player you can put on a dashboard.':'The app could not copy the integration into Home Assistant automatically, so the dashboard tile is not available yet. See the documentation for the manual steps.';
   if(!i.installed){$('#tileSteps').innerHTML='';return;}
@@ -284,10 +299,10 @@ window.addEventListener('popstate',()=>{if(S.skip){S.skip--;return;}if(S.stack.l
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&S.stack.length&&!/INPUT|SELECT|TEXTAREA/.test((document.activeElement||{}).tagName||''))back();});
 function closeSettings(){$('#settings').open=false;$('#library').scrollIntoView({behavior:'smooth'});}
 async function load(){const top=S.stack[S.stack.length-1];$('#list').innerHTML='<div class="empty"><div class="spin" style="margin:0 auto"></div></div>';$('#crumbs').innerHTML=crumbsHtml();$('#bBack').classList.remove('hidden');
-  try{const r=await api('api/browse?source='+top.src+'&id='+encodeURIComponent(top.id));S.items=r.items;renderLibrary();}
+  try{const r=await api('api/browse?source='+top.src+'&id='+encodeURIComponent(top.id));S.items=r.items;S.total=r.total||r.items.length;S.live=!!r.live;renderLibrary();}
   catch(e){$('#list').innerHTML='<div class="empty"><h3>Could not open this</h3><div>'+esc(e.message)+'</div><div style="margin-top:12px"><button class="btn" onclick="load()">Try again</button></div></div>';$('#bBack').classList.remove('hidden');}}
 function play(b){const p=cur();if(!p)return toast('No SLIMP3 connected yet',1);b.source=S.stack[S.stack.length-1].src;b.mac=p.mac;
-  post('api/play',b).then(r=>{toast('Playing '+r.queued+' track'+(r.queued>1?'s':''));poll();}).catch(e=>toast(e.message,1));}
+  post('api/play',b).then(r=>{toast(playedMsg(r));poll();}).catch(e=>toast(e.message,1));}
 function playAll(){play({container:S.stack[S.stack.length-1].id});}
 
 if(location.hash==='#settings')$('#settings').open=true;

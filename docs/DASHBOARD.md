@@ -23,6 +23,7 @@ separate card to install.
   play button; tracks play that track and continue through the folder.
 - When what is playing has no artist (a live TV channel, an untagged file), the media player shows the music server's name as the
   artist and as the app name, and uses the type `channel` for live sources, so the tile is never blank.
+- Live TV and radio entries are shown as channels (channel icon and type), not tracks. Placeholder artists such as `Unknown` are not shown.
 - The media player supports play, pause, stop, next track, previous track and volume. It shows the artist, title and album
   of what is playing, and the state (playing, paused, buffering, idle).
 - Music servers are the ones added to the app (on its page or in its configuration). See [CONFIGURATION.md](CONFIGURATION.md).

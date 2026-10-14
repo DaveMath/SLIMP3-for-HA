@@ -387,7 +387,7 @@ class App:
         oid, start = req.query.get("id", "0"), int(req.query.get("start", 0))
         loop = asyncio.get_event_loop()
         items, total = await loop.run_in_executor(None, srv.browse, oid, start, 200)
-        out = {"items": items, "total": total}
+        out = {"items": items, "total": total, "live": bool(items) and all(i.get("kind") for i in items if not i["container"]) and any(not i["container"] for i in items)}
         if req.query.get("title"):
             try:
                 meta = await loop.run_in_executor(None, srv.metadata, oid)
@@ -420,7 +420,12 @@ class App:
         for it in items:               # say where it comes from, for screens that have no artist or album
             it["source"] = label
         await p.play_queue(items, start)
-        return web.json_response({"queued": len(items), "start": start})
+        first = items[start]
+        # What the caller may tell the person. "remaining" is what follows the item that starts now (so a click on the 4th
+        # of 98 channels leaves 94), and "kind" is 'Live TV' or 'Live radio' for live sources, '' otherwise.
+        return web.json_response({"queued": len(items), "start": start, "remaining": len(items) - start - 1,
+                                  "title": first.get("title") or "", "kind": first.get("kind") or "",
+                                  "live": bool(first.get("kind"))})
 
     async def control(self, req):
         body = await req.json()

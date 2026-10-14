@@ -59,6 +59,16 @@ Queue and play. Either play a container from a given track:
 or a single item: `{"source": "0", "item": "<item id>"}`. Omit `start_id` to start at the first track.
 Playback continues through the container automatically. Returns `{"queued": N, "start": index}`.
 
+`POST /api/play` returns what started, for the caller to word correctly:
+
+```json
+{"queued": 98, "start": 3, "remaining": 94, "title": "2.4 BUZZR", "kind": "Live TV", "live": true}
+```
+
+`remaining` is how many items follow the one that starts now. `kind` is `Live TV`, `Live radio` or empty. `live` is true for live sources, and a caller
+should not show a track count for them. `GET /api/browse` also returns `live` (true when every playable item in the folder is live) and `total`
+(the server's count, which can exceed the 200 items returned).
+
 ## `POST /api/control`
 
 ```json

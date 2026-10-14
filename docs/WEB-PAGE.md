@@ -25,6 +25,22 @@ appears at the left of the library header (it is hidden on the top list, where t
 
 **Play all** starts the folder from its first track. Tapping a track plays it and continues through the folder.
 
+## Wording follows the source
+
+The page only says things that are true for what you opened. Live TV and radio are not "tracks", and a channel list has no "play all".
+
+| Source | Row | Click message | Previous/Next | Timeline | Play all |
+| --- | --- | --- | --- | --- | --- |
+| Music | title, artist, length | `Playing <title> and 29 more tracks` (the number is what comes after it), or `Playing <title>` for one | Previous/Next track | scrubber | shown |
+| Live TV (for example HDHomeRun) | channel name, `Live TV`, TV icon | `Playing channel 2.4 BUZZR`, no count | Previous/Next channel | `Live`, no scrubber | hidden |
+| Live radio | station name, `Live radio` | `Playing <station>`, no count | Previous/Next station | `Live` | hidden |
+| Video files | title, `Video` | as music | track | scrubber | shown |
+
+Clicking a channel starts it and queues the rest of the list after it, so Next and Previous move along the channel list (channel up and
+down). A folder shows `N items` when the server says how many, and nothing otherwise. Filler such as `Unknown` that servers put in empty
+artist and album fields is dropped instead of shown. If a folder has more entries than the page shows (the first 200), a line says
+`Showing the first 200 of N` instead of silently cutting the list.
+
 ## Settings
 
 The Settings section opens with a **Back to the library** button that closes it and scrolls to the library. Per player:

@@ -176,7 +176,7 @@ class SlimPlayer(CoordinatorEntity, MediaPlayerEntity):
     async def async_set_volume_level(self, volume: float) -> None:
         await self._control("volume", value=round(volume * 100))
 
-    # ---- media browser: music servers > folders > tracks -----------------------------
+    # ---- media browser: music servers > folders > tracks or channels -----------------------------
     async def async_browse_media(self, media_content_type: str | None = None,
                                  media_content_id: str | None = None) -> BrowseMedia:
         if not media_content_id or media_content_id == "library":
@@ -202,10 +202,13 @@ class SlimPlayer(CoordinatorEntity, MediaPlayerEntity):
                     media_content_type="directory", title=item["title"] or "Folder",
                     can_play=_playable_folder(item), can_expand=True))
             else:
+                live = bool(item.get("kind"))                    # a TV channel or radio station is not a track
                 label = " - ".join(x for x in (item.get("artist"), item.get("title")) if x)
                 children.append(BrowseMedia(
-                    media_class=MediaClass.TRACK, media_content_id=f"t:{sid}:{oid}:{item['id']}",
-                    media_content_type=MediaType.MUSIC, title=label or "Track",
+                    media_class=MediaClass.CHANNEL if live else MediaClass.TRACK,
+                    media_content_id=f"t:{sid}:{oid}:{item['id']}",
+                    media_content_type=MediaType.CHANNEL if live else MediaType.MUSIC,
+                    title=label or ("Channel" if live else "Track"),
                     can_play=True, can_expand=False))
         return BrowseMedia(
             media_class=MediaClass.DIRECTORY, media_content_id=media_content_id, media_content_type="directory",
@@ -224,6 +227,6 @@ class SlimPlayer(CoordinatorEntity, MediaPlayerEntity):
             else:
                 raise ValueError(kind)
         except ValueError as err:
-            raise HomeAssistantError(f"Cannot play {media_id}: pick a track or album from the SLIMP3 library") from err
+            raise HomeAssistantError(f"Cannot play {media_id}: pick a track, channel or album from the SLIMP3 library") from err
         await self._api.post("/api/play", {**body, "mac": self._mac})
         await self._refresh_soon()

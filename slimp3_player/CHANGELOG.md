@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.1
+- Wording now follows the source. Clicking a live channel says `Playing channel 2.4 BUZZR` instead of `Playing N tracks`; music says
+  `Playing <title> and N more tracks`, where N is what follows the clicked track. Live lists have no `Play all`, show a TV icon and
+  `Live TV`, and Next/Previous are labeled channel or station.
+- Folders no longer show `Unknown` as an artist; filler artist and album values from servers are dropped. Folders show `N items` when known.
+- A folder with more entries than the page shows says `Showing the first 200 of N`.
+- The Home Assistant media browser lists live entries as channels.
+- `POST /api/play` returns `remaining`, `title`, `kind` and `live`; `GET /api/browse` returns `live`. See docs/API.md.
+
 ## 0.11.0
 - **Sleep mode (optional, off by default).** When what is playing matches sleep keywords (white noise, rain, ocean and similar), the
   display shows it for 10 seconds, then `Going to sleep` with a 10 second countdown, then stays dark while it plays. Switch per player on

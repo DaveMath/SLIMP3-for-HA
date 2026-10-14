@@ -70,6 +70,13 @@ itself off. Live sources (TV tuners) never show the analyzer.
 The display ROM is not Unicode. Titles are folded to ASCII and characters that cannot be folded show as
 `?`. If other characters appear, open an issue with the exact title and your player's firmware version.
 
+## The page says a different number than I expect
+
+For music, `Playing <title> and N more tracks` counts what is queued **after** the track you clicked, not the folder size. Live TV and radio never
+show a count. The list on the page shows the first 200 entries and says so when there are more; playing can queue up to 500. If the
+number of channels differs from your tuner's own lineup, compare with the tuner (for an HDHomeRun, `http://<tuner address>/lineup.json`);
+the app shows what the tuner's media server offers, and a rescan on the tuner changes that list.
+
 ## I do not see the Back button, the timeline or the volume buttons
 
 The header shows the page's version (for example `v0.11.0`). If it shows an older version, or none, the browser or Home Assistant is showing a
