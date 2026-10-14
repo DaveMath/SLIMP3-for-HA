@@ -6,6 +6,8 @@ separate card to install.
 
 ## Setup
 
+The sidebar page's **Info** section shows whether the integration was installed and repeats these steps.
+
 1. **Install the app and start it.** On startup it copies the integration into Home Assistant's configuration folder
    (`custom_components/slimp3`). The app log says `installed the SLIMP3 Home Assistant integration`. This needs the
    configuration map that the app already declares; nothing to configure.

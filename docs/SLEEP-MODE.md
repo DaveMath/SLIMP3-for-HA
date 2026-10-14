@@ -19,9 +19,14 @@ Sleep mode applies to everything the SLIMP3 can show: music it plays itself, and
 
 ## Turning it on
 
-- **Sidebar page:** Settings, **This player**, **Sleep mode for this player** (saved immediately, per player).
-- **Configuration:** `sleep_mode: true` turns it on for every player. A `players` entry can set `sleep_mode` to override that
-  for one player. A choice made on the page overrides the configuration.
+It is set in one place, the app's **Configuration** tab in Home Assistant (there is no switch on the sidebar page):
+
+- **`sleep_mode`:** `true` turns it on for every player.
+- **A `players` entry** can set `sleep_mode` to override that for one player (matched by MAC address).
+- **`sleep_keywords`:** the words that count.
+
+Earlier versions (0.11.0 and 0.11.1) had a second switch on the page, saved separately. It is gone, and a value saved from it is ignored,
+so the Configuration tab is the only setting.
 
 ## What counts as sleep sounds
 

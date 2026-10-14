@@ -7,7 +7,7 @@ Changes apply after restarting the app.
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `dlna_servers` | `[]` | Optional. DLNA/UPnP media server description URLs written in the configuration. You can also add servers on the sidebar page (see below). For Plex's DLNA server: `http://<host>:32469/DeviceDescription.xml`. |
+| `dlna_servers` | `[]` | **Optional.** DLNA/UPnP media server description URLs written in the configuration. DLNA servers on your network are found automatically and listed on the page's Info section, where you add one with a click (see below). For Plex's DLNA server: `http://<host>:32469/DeviceDescription.xml`. |
 | `player_ips` | `[]` | Optional SLIMP3 addresses. Only needed if a player does not find the server by broadcast. The app sends these addresses a hello until the player registers. |
 | `sonos_ips` | `[]` | Optional. Sonos players are found automatically; add an address only if discovery cannot see them (for example another network segment). One address is enough, the app reads the whole household from it. |
 | `sonos_discovery` | `true` | Search the network for Sonos players. `false` uses only `sonos_ips`. |
@@ -92,11 +92,11 @@ Saved settings **override** the same fields in `players` from the options; field
 come from the options (for example `volume`). Use the page for the everyday choices and `players` when you want
 the setup written down in configuration.
 
-### Sleep mode on the sidebar page
+### Sleep mode is a configuration setting only
 
-Under **This player**, the **Sleep mode for this player** checkbox turns it on or off for that SLIMP3 and is saved immediately. The keyword
-list is edited in the configuration only. Details and limits: [SLEEP-MODE.md](SLEEP-MODE.md). The page itself (timeline, volume,
-Back) is described in [WEB-PAGE.md](WEB-PAGE.md).
+`sleep_mode`, a per-player `sleep_mode` in `players`, and `sleep_keywords` are set here in the Configuration tab. The sidebar page has no
+sleep switch. Details and limits: [SLEEP-MODE.md](SLEEP-MODE.md). The page itself (timeline, volume, Back, Info, Settings) is described in
+[WEB-PAGE.md](WEB-PAGE.md).
 
 ## Boot screens: seeing each player's IP and MAC
 
@@ -120,9 +120,9 @@ with the player's `mac` to run the sequence again on that unit.
 
 ## Music sources (DLNA/UPnP)
 
-Music servers come from two places: `dlna_servers` in the configuration, and the ones **you add on the sidebar page**
-(Settings, Music servers). On the page, **Find servers** searches the network (and this host's Plex DLNA port) and
-lists what it finds with an Add button; or type just an address such as `192.168.1.10` and the app works out the
+Music servers come from two places: `dlna_servers` in the configuration (**optional**), and the ones **you add on the sidebar page**
+(Info, Music servers). Opening **Info** searches the network (and this host's Plex DLNA port) and
+lists what it finds with an Add button (**Find servers** searches again); or type just an address such as `192.168.1.10` and the app works out the
 rest. Servers added on the page are saved in the app's data folder and can be removed there; servers from the
 configuration can only be removed in the configuration. You browse a server exactly as it presents itself:
 every library, folder, playlist or view the server exposes through its ContentDirectory is available,

@@ -220,7 +220,7 @@ class App:
         p.name = c.get("name") or ""
         p.sonos_room = c.get("sonos_room") or ""
         p.apple_room = c.get("apple_room") or ""
-        p.sleep_mode = bool(c.get("sleep_mode", self.opts.get("sleep_mode", False)))
+        p.sleep_mode = bool(self.cfg.get(p.mac.lower(), {}).get("sleep_mode", self.opts.get("sleep_mode", False)))   # Configuration tab only
         p.sleep_keywords = [str(k) for k in (self.opts.get("sleep_keywords") or DEFAULT_SLEEP_KEYWORDS)]
         p.show_sonos = c.get("show_sonos", self.opts.get("sonos_display", True))
         if "volume" in c:
@@ -241,7 +241,11 @@ class App:
     def _load_saved(self):
         try:
             with open(os.path.join(self.data_dir, "player_settings.json")) as f:
-                return {k.lower(): v for k, v in json.load(f).items()}
+                saved = {k.lower(): v for k, v in json.load(f).items()}
+            for v in saved.values():          # sleep mode used to be savable from the page; the Configuration tab is the only place now
+                if isinstance(v, dict):
+                    v.pop("sleep_mode", None)
+            return saved
         except (OSError, ValueError):
             return {}
 
@@ -507,8 +511,6 @@ class App:
             p.sonos_room = s["sonos_room"] = str(body["sonos_room"])
         if "apple_room" in body:
             p.apple_room = s["apple_room"] = str(body["apple_room"])
-        if "sleep_mode" in body:
-            p.sleep_mode = s["sleep_mode"] = bool(body["sleep_mode"])
         if "show_sonos" in body:
             p.show_sonos = s["show_sonos"] = bool(body["show_sonos"])
         p.configured = True
@@ -537,10 +539,8 @@ class App:
                 await self.apple.discover()
             except Exception as e:
                 log("HomePod discovery failed: %s" % e)
-        return web.json_response({"enabled": self.apple.enabled, "available": bool(self.apple.enabled and self.apple.names() is not None),
-                                  "devices": [{"name": n, "model": self.apple.model(n), "connected": n in self.apple._conns,
-                                               "state": (self.apple.devices.get(n) or {}).get("state", "")}
-                                              for n in self.apple.names()]})
+        return web.json_response({"enabled": self.apple.enabled, "available": self.apple.available(), "error": self.apple.error,
+                                  "devices": [dict(self.apple.info(n), name=n, model=self.apple.model(n)) for n in self.apple.names()]})
 
     async def index(self, req):
         return web.FileResponse(os.path.join(WEB, "index.html"))

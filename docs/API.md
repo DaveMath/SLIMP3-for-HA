@@ -31,7 +31,7 @@ For local development, set `SLIMP3_ALLOW_ALL=1` to lift the address check.
 Home Assistant integration was copied into the Home Assistant configuration folder. `heard` lists addresses that sent a discovery or hello packet recently (what the page shows while it is
 looking for a player). `state` is one of `stop`, `buffering`, `play`, `paused`, `rebuffer`, `eof`. `index` is the zero-based
 queue position. `position` is seconds into the track (it includes where a seek started). `duration` is the track length in seconds, or null if unknown. `seekable` is true when
-`seek` will work (not live, length known). `sleep_mode` is this player's switch. `version` is the app's version. Every response carries `Cache-Control: no-store`.
+`seek` will work (not live, length known). `sleep_mode` is this player's effective sleep mode (read-only; it comes from the configuration). `version` is the app's version. Every response carries `Cache-Control: no-store`.
 
 ## Music servers
 
@@ -81,7 +81,7 @@ item is live or its length is not known. `identify` runs the boot screens (IP, M
 ## `POST /api/player`
 
 ```json
-{"mac": "...", "name": "Den", "sonos_room": "Living Room", "apple_room": "", "show_sonos": true, "sleep_mode": false}
+{"mac": "...", "name": "Den", "sonos_room": "Living Room", "apple_room": "", "show_sonos": true}
 ```
 
 Saves a player's name and Sonos room (any subset of the fields) and applies it immediately. Saved values
@@ -95,8 +95,10 @@ display off for that player.
  "devices": [{"name": "Kitchen", "model": "HomePod", "connected": false, "state": ""}]}
 ```
 
-The HomePods found on the network. `connected` and `state` (`PLAYING`, `PAUSED`, `STOPPED`) are filled only while the app is
-connected to that HomePod, which happens only while a SLIMP3 is idle and wants to show it.
+The HomePods found on the network. `connected`, `state` (`PLAYING`, `PAUSED`, `STOPPED`), `title`, `artist`, `app` and `age` (seconds since the
+HomePod last reported) are filled only while the app is connected to that HomePod, which happens only while a SLIMP3 is idle and wants to show
+it. `error` is the last reason a connection failed. At the top level, `available` is false when the HomePod library could not be loaded and `error`
+says why.
 
 ## `GET /api/sonos`
 

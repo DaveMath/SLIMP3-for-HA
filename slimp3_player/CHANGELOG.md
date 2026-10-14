@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.2
+- New **Info** section on the sidebar page: this player's details, the DLNA servers found on the network (searched automatically when you
+  open it, add with a click), Sonos and HomePods with what each reports, and the **dashboard tile** steps. Those moved out of Settings.
+- Sleep mode is set in the **Configuration** tab only. The duplicate switch on the page is removed, and any value saved from it is ignored.
+  The Configuration descriptions now carry the full explanation.
+- Configuration tab: media servers are labeled **optional** and the text says servers are found automatically.
+- HomePods: the page now says what each HomePod reports and why one cannot be reached or why HomePod support is unavailable, instead of
+  failing silently. `Loading` and `Seeking` count as playing.
+
 ## 0.11.1
 - Wording now follows the source. Clicking a live channel says `Playing channel 2.4 BUZZR` instead of `Playing N tracks`; music says
   `Playing <title> and N more tracks`, where N is what follows the clicked track. Live lists have no `Play all`, show a TV icon and

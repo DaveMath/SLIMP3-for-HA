@@ -16,6 +16,14 @@ SLIMP3, the **Show on the display when this player is idle** dropdown in Setting
 In the configuration the same choice is `apple_room` on a `players` entry (a HomePod's name, as the Home app shows it). The option
 `apple_discovery` (default on) switches HomePod support off.
 
+## Seeing what a HomePod reports
+
+The sidebar page's **Info** section lists each HomePod with what it reports right now, for example
+`Bedroom (HomePod mini): paused, Ambient Sounds: Ambient Sounds - White Noise (updated 12 s ago)`, and the reason when it cannot be reached or when
+HomePod support is not available in this build. Only a **playing** HomePod is shown on a SLIMP3 display, so if the display is blank, check what Info says
+first: `paused` means the HomePod itself says it is not playing (this has been seen with Ambient Sounds such as White Noise), and the app
+shows exactly what the HomePod reports.
+
 ## What shows
 
 | HomePod | Line 1 | Line 2 |

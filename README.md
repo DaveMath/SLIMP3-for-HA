@@ -40,7 +40,8 @@ Written by @GGDM on Krystalize.AI local harness.
   down 10 seconds with `Going to sleep`, then stays dark while that plays. See [docs/SLEEP-MODE.md](docs/SLEEP-MODE.md).
 - **Multi-room.** Each SLIMP3 is matched by MAC address to its own settings, including which Sonos
   room it mirrors. Sonos speakers are **found automatically** and listed in a dropdown on the sidebar page, where
-  you also name each player; no addresses to type.
+  you also name each player; no addresses to type. The page's **Info** section lists the servers, Sonos and HomePods it found and the
+  dashboard tile steps.
 
 ## Requirements
 
@@ -69,7 +70,7 @@ ffmpeg's own output).
 | --- | --- |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Every option, single-room and multi-room examples, finding MAC addresses, Sonos rooms and DLNA URLs |
 | [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) | Architecture, the SLIMP3 protocol, streaming engine, display, spectrum sync, Sonos, security |
-| [docs/WEB-PAGE.md](docs/WEB-PAGE.md) | The sidebar page: timeline, volume, Back, settings, how seeking works |
+| [docs/WEB-PAGE.md](docs/WEB-PAGE.md) | The sidebar page: timeline, volume, Back, Info, Settings, how seeking works |
 | [docs/SLEEP-MODE.md](docs/SLEEP-MODE.md) | Sleep mode: what it does, keywords, limits |
 | [docs/HOMEPOD.md](docs/HOMEPOD.md) | HomePod display: setup, what shows, how it works, cost, limits |
 | [docs/DASHBOARD.md](docs/DASHBOARD.md) | The dashboard tile and media browser: setup, what it supports, troubleshooting |

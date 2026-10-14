@@ -44,11 +44,12 @@ The app only reads from Sonos. It cannot get Sonos audio, so there is no spectru
 ## Web page
 
 Timeline scrubber (drag to jump within a track), a small volume control (minus and plus, 5 per press), and a Back button, breadcrumbs,
-Escape and the phone's back gesture for the library. The header shows the version. Details: `docs/WEB-PAGE.md` in the repository.
+Escape and the phone's back gesture for the library. The header shows the version. **Info** lists this player's details, the DLNA servers found
+(add with a click), Sonos and HomePods, and the dashboard tile steps; **Settings** has the player's name and what its display shows when idle. Details: `docs/WEB-PAGE.md` in the repository.
 
 ## Sleep mode
 
-Optional. With `sleep_mode: true` (or the checkbox in Settings), when what is playing looks like sleep sounds (the `sleep_keywords`,
+Optional, and set here in the Configuration tab only. With `sleep_mode: true`, when what is playing looks like sleep sounds (the `sleep_keywords`,
 for example white noise or rain), the display shows it for 10 seconds, shows `Going to sleep` with a 10 second countdown, then stays
 dark while that plays. Some songs match a keyword (for example "Purple Rain"); edit the list to taste. Details: `docs/SLEEP-MODE.md`.
 

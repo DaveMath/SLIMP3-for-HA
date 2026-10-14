@@ -95,11 +95,17 @@ off if they are variable-bit-rate; setting `mp3_passthrough: false` makes ffmpeg
 
 ## Sleep mode does not turn the display off
 
+Sleep mode is set in the app's **Configuration** tab (`sleep_mode`), not on the page.
+
 The content must contain one of the `sleep_keywords` as a whole word (title, artist, album or station), the switch must be on for that player,
 and the 10 second show plus 10 second countdown must have passed. See [SLEEP-MODE.md](SLEEP-MODE.md). If the display only dims, tell us: the
 display has four brightness levels and this has not yet been confirmed on every unit.
 
 ## A HomePod does not show
+
+First open the sidebar page's **Info** section and read the line for that HomePod. It says what the HomePod reports (`playing`, `paused`, ...), or
+`cannot connect: <reason>`, or that HomePod support is not available in this build and why.
+
 
 See [HOMEPOD.md](HOMEPOD.md). The page lists the HomePods it found. Check the log for `HomePods found:` and for
 `HomePod support is not available`. The HomePod must be playing (not paused), the SLIMP3 must be idle, and the dropdown must allow

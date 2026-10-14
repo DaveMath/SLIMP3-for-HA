@@ -111,25 +111,17 @@ input[type=text],select{font:inherit;color:var(--fg);background:var(--card);bord
     <div id="list"></div>
   </section>
 
-  <details class="card" id="settings">
-    <summary>Settings</summary>
-    <div class="sec" style="padding-bottom:0"><button class="btn" onclick="closeSettings()">&larr; Back to the library</button></div>
+  <details class="card" id="info">
+    <summary>Info</summary>
+    <div class="sec" style="padding-bottom:0"><button class="btn" onclick="closeSection('info')">&larr; Back to the library</button></div>
     <div class="sec">
-      <div id="secPlayer" class="hidden">
+      <div id="infoPlayer" class="hidden">
         <h3>This player</h3>
-        <div class="field"><label for="pname">Name</label>
-          <input type="text" id="pname" maxlength="30" placeholder="For example: Living Room" oninput="nameTyped()" autocomplete="off">
-          <div class="saved" id="nameSaved">Changes are saved automatically.</div></div>
-        <div class="field" style="margin-top:10px"><label for="proom">Show on the display when this player is idle</label>
-          <select id="proom" onchange="roomChanged()"></select>
-          <div class="saved" id="roomSaved"></div></div>
-        <div class="field" style="margin-top:10px"><label class="check"><input type="checkbox" id="psleep" onchange="sleepChanged()"> Sleep mode for this player</label>
-          <div class="sub" style="margin-top:4px">When what is playing looks like sleep sounds (white noise, rain, ocean and similar), the display shows it for 10 seconds, then "Going to sleep" with a 10 second countdown, then turns off for as long as that plays. It applies to music on this player and to Sonos or HomePod shown on its display.</div>
-          <div class="saved" id="sleepSaved"></div></div>
-        <div class="sub" id="devInfo" style="margin-top:8px"></div>
+        <div class="sub" id="devInfo"></div>
       </div>
       <div>
         <h3>Music servers</h3>
+        <div class="sub" style="margin-bottom:8px">DLNA servers on your network are found automatically. Add one with a click.</div>
         <div id="srvList"></div>
         <div class="row" style="margin-top:10px">
           <button class="btn" id="bFind" onclick="findServers()"></button>
@@ -143,6 +135,23 @@ input[type=text],select{font:inherit;color:var(--fg);background:var(--card);bord
       <div><h3>Dashboard tile</h3>
         <div class="sub" id="tileInfo"></div>
         <ol class="steps" id="tileSteps"></ol></div>
+    </div>
+  </details>
+
+  <details class="card" id="settings">
+    <summary>Settings</summary>
+    <div class="sec" style="padding-bottom:0"><button class="btn" onclick="closeSection('settings')">&larr; Back to the library</button></div>
+    <div class="sec">
+      <div id="secPlayer" class="hidden">
+        <h3>This player</h3>
+        <div class="field"><label for="pname">Name</label>
+          <input type="text" id="pname" maxlength="30" placeholder="For example: Living Room" oninput="nameTyped()" autocomplete="off">
+          <div class="saved" id="nameSaved">Changes are saved automatically.</div></div>
+        <div class="field" style="margin-top:10px"><label for="proom">Show on the display when this player is idle</label>
+          <select id="proom" onchange="roomChanged()"></select>
+          <div class="saved" id="roomSaved"></div></div>
+      </div>
+      <div class="sub">Sleep mode, the spectrum analyzer, volume and the media server addresses are set in this app's <b>Configuration</b> tab in Home Assistant.</div>
     </div>
   </details>
 </main>
@@ -174,7 +183,7 @@ function renderChips(){const p=cur();let h='';
   if(S.apple&&S.apple.devices&&S.apple.devices.length)h+='<span class="chip ok"><span class="dot"></span>HomePod: '+S.apple.devices.length+'</span>';
   $('#chips').innerHTML=h;}
 function renderPlayer(){const p=cur(),none=!p;
-  $('#discover').classList.toggle('hidden',!none);$('#playerCard').classList.toggle('hidden',none);$('#secPlayer').classList.toggle('hidden',none);
+  $('#discover').classList.toggle('hidden',!none);$('#playerCard').classList.toggle('hidden',none);$('#secPlayer').classList.toggle('hidden',none);$('#infoPlayer').classList.toggle('hidden',none);
   if(none){const l=[];
     if(S.heard.length)l.push('Heard a device at '+S.heard.map(h=>esc(h.ip)+' ('+h.ago+' s ago)').join(', ')+'. Connecting…');
     else l.push('Nothing heard yet. Check that the SLIMP3 is powered on and on the same network as Home Assistant.');
@@ -194,7 +203,6 @@ function renderPlayer(){const p=cur(),none=!p;
    $('#bPrev').setAttribute('aria-label','Previous '+w);$('#bPrev').title='Previous '+w;$('#bNext').setAttribute('aria-label','Next '+w);$('#bNext').title='Next '+w;}$('#bStop').innerHTML=ic('stop');$('#volIc').innerHTML=ic('vol',18);
   $('#bPlay').innerHTML=ic(p.state==='paused'?'play':(m.title?'pause':'play'));
   if(S.volTarget==null)$('#volv').textContent=p.volume;S.vol=p.volume;
-  if(document.activeElement!==$('#psleep'))$('#psleep').checked=!!p.sleep_mode;
   S.tl={pos:p.position,at:Date.now(),playing:p.state==='play',dur:p.duration,seekable:!!p.seekable,has:!!m.title,live:/live/i.test(m.kind||'')};drawTimeline();
   if(document.activeElement!==$('#pname'))$('#pname').value=p.name||'';
   if(document.activeElement!==$('#proom'))$('#proom').value=p.show_sonos===false?'__off':(p.apple_room?('a:'+p.apple_room):(p.sonos_room?('s:'+p.sonos_room):''));
@@ -219,8 +227,6 @@ setInterval(drawTimeline,500);
 function setSaved(id,t,ok){const e=$(id);e.textContent=t;e.className='saved'+(ok?' ok':'');}
 function nameTyped(){setSaved('#nameSaved','Saving…');clearTimeout(nameT);nameT=setTimeout(saveName,700);}
 async function saveName(){const p=cur();if(!p)return;try{await post('api/player',{mac:p.mac,name:$('#pname').value.trim()});setSaved('#nameSaved','Saved',1);poll();}catch(e){setSaved('#nameSaved',e.message);}}
-async function sleepChanged(){const p=cur();if(!p)return;setSaved('#sleepSaved','Saving…');
-  try{await post('api/player',{mac:p.mac,sleep_mode:$('#psleep').checked});setSaved('#sleepSaved','Saved',1);poll();}catch(e){setSaved('#sleepSaved',e.message);}}
 async function roomChanged(){const p=cur(),v=$('#proom').value;if(!p)return;setSaved('#roomSaved','Saving…');
   const b={mac:p.mac,show_sonos:v!=='__off',sonos_room:'',apple_room:''};
   if(v.startsWith('s:'))b.sonos_room=v.slice(2);else if(v.startsWith('a:'))b.apple_room=v.slice(2);
@@ -236,13 +242,17 @@ async function loadSonos(){
   sel.value=keep;
   const parts=[];
   parts.push(rooms.length?'Sonos: '+rooms.join(', '):(S.enabled===false?'Sonos support is switched off.':'No Sonos speakers found. If you have Sonos, they may be on another network segment; add one address under "sonos_ips" in the app configuration.'));
-  parts.push(pods.length?'HomePods: '+pods.map(d=>d.name+' ('+d.model+')').join(', ')+'. The app only reads what they are playing; no pairing is needed.':(S.apple&&S.apple.enabled===false?'HomePod support is switched off.':'No HomePods found.'));
+  if(S.apple&&S.apple.enabled===false)parts.push('HomePod support is switched off.');
+  else if(S.apple&&S.apple.available===false)parts.push('HomePod support is not available in this app build'+(S.apple.error?' ('+S.apple.error+')':'')+'. Everything else works.');
+  else if(!pods.length)parts.push('No HomePods found. They must be on the same network segment as Home Assistant.');
+  else{parts.push('HomePods (the app only reads what they are playing; no pairing is needed):');
+    pods.forEach(d=>parts.push('\u2022 '+d.name+' ('+d.model+'): '+(d.error?'cannot connect: '+d.error:!d.connected?'not listening right now (only listens while a player is idle and set to show it)':(d.state?d.state.toLowerCase():'no report yet')+(d.title?', '+(d.app?d.app+': ':'')+[d.artist,d.title].filter(Boolean).join(' - '):'')+(d.age!=null?' (updated '+d.age+' s ago)':''))));}
   $('#sonosInfo').innerHTML=parts.map(x=>'<div style="margin-bottom:4px">'+esc(x)+'</div>').join('');
   renderChips();}
 
 /* ---------- music servers (file picker) ---------- */
 async function loadSources(){try{S.sources=await api('api/sources');renderSources();if(!S.stack.length)renderLibrary();}catch(e){}}
-function renderSources(){$('#srvList').innerHTML=S.sources.length?S.sources.map(s=>'<div class="srv"><span class="ico">'+ic('server')+'</span><div class="t"><div>'+esc(s.name)+'</div><div class="sub">'+esc(s.url)+'</div></div>'+(s.origin==='config'?'<span class="badge">from configuration</span>':'<button class="btn small danger" onclick="removeSrv(\''+s.id+'\')">Remove</button>')+'</div>').join(''):'<div class="sub">No music servers yet. Use Find servers below.</div>';
+function renderSources(){$('#srvList').innerHTML=S.sources.length?S.sources.map(s=>'<div class="srv"><span class="ico">'+ic('server')+'</span><div class="t"><div>'+esc(s.name)+'</div><div class="sub">'+esc(s.url)+'</div></div>'+(s.origin==='config'?'<span class="badge">from configuration</span>':'<button class="btn small danger" onclick="removeSrv(\''+s.id+'\')">Remove</button>')+'</div>').join(''):'<div class="sub">None added yet. Add one from the list below.</div>';
   $('#bFind').innerHTML=ic('refresh',18)+' Find servers';}
 async function findServers(){const b=$('#bFind');b.disabled=true;$('#findState').innerHTML='<span class="spin" style="display:inline-block;vertical-align:-3px"></span> Searching your network…';
   try{const f=await api('api/discover/servers');S.foundOnce=true;
@@ -260,7 +270,7 @@ function renderLibrary(){const root=!S.stack.length;
   const hasTracks=!root&&!S.live&&S.items.some(i=>!i.container);$('#bAll').classList.toggle('hidden',!hasTracks);   /* no "Play all" for a channel list */
   const more=!root&&S.total>S.items.length?'<div class="empty" style="padding:14px">Showing the first '+S.items.length+' of '+S.total+'. Open a sub-folder or search the server to narrow it.</div>':'';$('#bAll').innerHTML=ic('play',16)+' Play all';
   if(root){$('#list').innerHTML=S.sources.length?S.sources.map(s=>'<div class="item" tabindex="0" role="button" onclick="openServer(\''+s.id+'\')" onkeydown="if(event.key===\'Enter\')openServer(\''+s.id+'\')"><span class="ico">'+ic('server')+'</span><div class="t"><div>'+esc(s.name)+'</div><div class="s">Browse this server</div></div><span class="chev">'+ic('chev')+'</span></div>').join(''):
-    '<div class="empty">'+ic('server',36)+'<h3>No music servers yet</h3><div>Find your Plex or other DLNA server and add it.</div><div style="margin-top:14px"><button class="btn primary" onclick="openSettings()">Find servers</button></div></div>';return;}
+    '<div class="empty">'+ic('server',36)+'<h3>No music servers yet</h3><div>Find your Plex or other DLNA server and add it.</div><div style="margin-top:14px"><button class="btn primary" onclick="openInfo()">Find servers</button></div></div>';return;}
   $('#list').innerHTML=S.items.length?S.items.map((it,n)=>'<div class="item" tabindex="0" role="button" onclick="openItem('+n+')" onkeydown="if(event.key===\'Enter\')openItem('+n+')"><span class="ico">'+ic(it.container?'folder':(it.kind==='Live TV'?'tv':'note'))+'</span><div class="t"><div>'+esc(it.title)+'</div><div class="s">'+esc([subOf(it),it.duration&&it.duration.replace(/^0:/,'').replace(/\.\d+$/,'')].filter(Boolean).join('  -  '))+'</div></div>'+(it.container?'<span class="chev">'+ic('chev')+'</span>':'<span class="chev">'+ic('play',18)+'</span>')+'</div>').join(''):'<div class="empty">This folder is empty.</div>';
   if(more)$('#list').insertAdjacentHTML('beforeend',more);}
 /* Wording follows the source: channels and live radio are not "tracks", and a folder has no artist. */
@@ -281,7 +291,8 @@ function renderTile(){const i=S.integration;if(!i)return;const steps=[];
   steps.push('Settings, Devices and services, Add integration, then choose <b>SLIMP3</b>. The default address works for most installs.');
   steps.push('On a dashboard: Edit, Add card, <b>Tile</b>, and choose your SLIMP3 player. Tap the tile to open the player, then use <b>Browse media</b> to pick music from your servers.');
   $('#tileSteps').innerHTML=steps.map(x=>'<li>'+x+'</li>').join('');}
-function openSettings(){$('#settings').open=true;$('#settings').scrollIntoView({behavior:'smooth'});if(!S.foundOnce)findServers();}
+function openInfo(){$('#info').open=true;$('#info').scrollIntoView({behavior:'smooth'});}
+$('#info').addEventListener('toggle',()=>{if($('#info').open&&!S.foundOnce){S.foundOnce=true;findServers();}});
 function openServer(id){const s=S.sources.find(x=>x.id===id);S.stack=[{src:id,id:'0',title:s?s.name:'Server'}];pushNav();load();}
 function openItem(n){const it=S.items[n],top=S.stack[S.stack.length-1];
   if(it.container){S.stack.push({src:top.src,id:it.id,title:it.title});pushNav();load();}else play({container:top.id,start_id:it.id});}
@@ -297,7 +308,7 @@ function goUp(i){const n=S.stack.length-1-i;if(n<=0)return;S.stack.length=i+1;af
 function goRoot(){const n=S.stack.length;S.stack=[];S.items=[];renderLibrary();rewind(n);}
 window.addEventListener('popstate',()=>{if(S.skip){S.skip--;return;}if(S.stack.length){S.hd=Math.max(0,(S.hd||1)-1);S.stack.pop();afterNav();}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&S.stack.length&&!/INPUT|SELECT|TEXTAREA/.test((document.activeElement||{}).tagName||''))back();});
-function closeSettings(){$('#settings').open=false;$('#library').scrollIntoView({behavior:'smooth'});}
+function closeSection(id){$('#'+id).open=false;$('#library').scrollIntoView({behavior:'smooth'});}
 async function load(){const top=S.stack[S.stack.length-1];$('#list').innerHTML='<div class="empty"><div class="spin" style="margin:0 auto"></div></div>';$('#crumbs').innerHTML=crumbsHtml();$('#bBack').classList.remove('hidden');
   try{const r=await api('api/browse?source='+top.src+'&id='+encodeURIComponent(top.id));S.items=r.items;S.total=r.total||r.items.length;S.live=!!r.live;renderLibrary();}
   catch(e){$('#list').innerHTML='<div class="empty"><h3>Could not open this</h3><div>'+esc(e.message)+'</div><div style="margin-top:12px"><button class="btn" onclick="load()">Try again</button></div></div>';$('#bBack').classList.remove('hidden');}}

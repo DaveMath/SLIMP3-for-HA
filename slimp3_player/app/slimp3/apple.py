@@ -8,6 +8,7 @@ import sys
 import time
 
 _PYATV = None
+LOAD_ERROR = [""]
 
 
 def load_pyatv(log=print):
@@ -26,7 +27,8 @@ def load_pyatv(log=print):
         return pyatv
     except Exception as e:
         _PYATV = False
-        log("HomePod support is not available (%s: %s)" % (type(e).__name__, e))
+        LOAD_ERROR[0] = "%s: %s" % (type(e).__name__, e)
+        log("HomePod support is not available (%s)" % LOAD_ERROR[0])
         return None
 
 
@@ -43,11 +45,26 @@ class AppleMonitor:
         self._disc_t = 0.0
         self._listeners = {}
         self._ok = None
+        self.error = ""            # why HomePod support is unavailable, if it is
+        self._dev_err = {}         # name -> last connection error
+        self._seen_t = {}          # name -> when the HomePod last reported
 
     # ---- discovery ---------------------------------------------------------------
+    def available(self):
+        """True when the HomePod library loaded (or has not been needed yet and nothing failed)."""
+        return self.enabled and _PYATV is not False
+
+    def info(self, name):
+        """What the app knows about one HomePod, for the Info page."""
+        d = self.devices.get(name) or {}
+        return {"connected": name in self._conns, "state": d.get("state", ""), "title": d.get("title", ""),
+                "artist": d.get("artist", ""), "app": d.get("app", ""), "error": self._dev_err.get(name, ""),
+                "age": round(time.time() - self._seen_t[name]) if name in self._seen_t else None}
+
     async def discover(self):
         pyatv = load_pyatv(self.log)
         if not pyatv:
+            self.error = LOAD_ERROR[0]
             return
         found = await pyatv.scan(asyncio.get_event_loop(), timeout=5)
         confs = {}
@@ -77,6 +94,7 @@ class AppleMonitor:
             atv = await asyncio.wait_for(pyatv.connect(self._confs[name], asyncio.get_event_loop()), 20)
         except Exception as e:
             self._retry[name] = time.time() + 60
+            self._dev_err[name] = "%s: %s" % (type(e).__name__, e)
             self.log("HomePod %s: cannot connect (%s: %s); retrying in a minute" % (name, type(e).__name__, e))
             return
         from pyatv.interface import DeviceListener, PushListener
@@ -102,6 +120,7 @@ class AppleMonitor:
         atv.push_updater.listener = listener
         atv.push_updater.start(initial_delay=0)
         self._conns[name] = atv
+        self._dev_err.pop(name, None)
         try:
             self._apply(name, await atv.metadata.playing())
         except Exception:
@@ -126,9 +145,14 @@ class AppleMonitor:
 
     def _apply(self, name, p):
         state = getattr(p.device_state, "name", str(p.device_state))
+        self._seen_t[name] = time.time()
+        try:
+            app = self._conns[name].metadata.app.name or ""
+        except Exception:
+            app = ""
         self.devices[name] = {
-            "station": "", "room": name, "state": "PLAYING" if state == "Playing" else
-            ("PAUSED" if state == "Paused" else "STOPPED"),
+            "station": "", "room": name, "app": app,
+            "state": "PLAYING" if state in ("Playing", "Seeking", "Loading") else ("PAUSED" if state == "Paused" else "STOPPED"),
             "artist": p.artist or "", "title": p.title or "", "album": p.album or "",
             "source": self.model(name), "uri": "", "kind": "apple"}
 

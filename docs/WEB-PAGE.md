@@ -1,6 +1,6 @@
 # The web page (sidebar)
 
-Open **SLIMP3** in the Home Assistant sidebar. The page shows the version in the header (for example `v0.11.0`). If the version is
+Open **SLIMP3** in the Home Assistant sidebar. The page has the player card, the library, **Info** and **Settings**. The page shows the version in the header (for example `v0.11.0`). If the version is
 not the one you installed, the page is stale: reload it (see Troubleshooting below).
 
 ## Player card
@@ -41,17 +41,29 @@ down). A folder shows `N items` when the server says how many, and nothing other
 artist and album fields is dropped instead of shown. If a folder has more entries than the page shows (the first 200), a line says
 `Showing the first 200 of N` instead of silently cutting the list.
 
+## Info
+
+The **Info** section (below the library, above Settings) is where you look things up. It opens with a **Back to the library** button.
+
+- **This player:** address, MAC and firmware.
+- **Music servers:** the DLNA servers on your network are searched for automatically when you open Info, and listed with an **Add**
+  button (or `Added`). The servers you have added are listed above them. You can also add one by address, for example `192.168.1.10`.
+  This host's Plex DLNA port is included when the app runs on the same machine as Plex.
+- **Sonos and HomePods:** what the app found, and what each HomePod reports right now (for example `paused, Ambient Sounds: Ambient
+  Sounds - White Noise (updated 12 s ago)`). If a HomePod cannot be reached, or HomePod support is not available in this build, it says
+  why. A HomePod is only listened to while a SLIMP3 is idle and set to show it, so otherwise it says `not listening right now`.
+- **Dashboard tile:** whether the Home Assistant integration was installed, and the steps to add the tile.
+
 ## Settings
 
-The Settings section opens with a **Back to the library** button that closes it and scrolls to the library. Per player:
+The Settings section opens with a **Back to the library** button. For the selected player:
 
 - **Name.**
 - **Show on the display when this player is idle:** a Sonos room, a HomePod, anything that is playing, or off. See
   [CONFIGURATION.md](CONFIGURATION.md) and [HOMEPOD.md](HOMEPOD.md).
-- **Sleep mode for this player.** See [SLEEP-MODE.md](SLEEP-MODE.md).
 
-Changes are saved as you make them and survive restarts and updates. The same section also finds and adds music servers and shows
-the Sonos and HomePod devices the app found.
+Changes are saved as you make them and survive restarts and updates. Everything else (sleep mode, the spectrum analyzer, volume, the
+media server addresses) is in the app's **Configuration** tab in Home Assistant, not on this page. A line in Settings says so.
 
 ## Seeking: how it works and its limits
 
