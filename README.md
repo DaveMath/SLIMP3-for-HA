@@ -41,8 +41,9 @@ Written by @GGDM on Krystalize.AI local harness.
    See [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
 4. Start the app, then open **SLIMP3** in the sidebar.
 
-The first build compiles the container on your Home Assistant machine. The build fails with a clear
-message if the base image's ffmpeg lacks the MP3 encoder.
+The first build compiles the container on your Home Assistant machine. At startup the app checks that its
+ffmpeg has the MP3 encoder and logs the result (`ffmpeg ok: libmp3lame encoder present`, or an error with
+ffmpeg's own output).
 
 ## Documentation
 

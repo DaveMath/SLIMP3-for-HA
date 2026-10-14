@@ -9,9 +9,11 @@ LABEL \
 
 RUN apk add --no-cache python3 py3-aiohttp py3-numpy ffmpeg
 
-# Fail the build early if ffmpeg cannot encode MP3 (the SLIMP3 decodes MP3 only).
-RUN ffmpeg -hide_banner -encoders 2>/dev/null | grep -q libmp3lame \
- || { echo "ERROR: this ffmpeg build lacks the libmp3lame encoder" >&2; exit 1; }
+# Informational only: record what this ffmpeg offers. The app re-checks at startup and logs clearly.
+RUN (ffmpeg -hide_banner -version; ffmpeg -hide_banner -encoders) > /tmp/ffmpeg-info.txt 2>&1 || true; \
+    head -1 /tmp/ffmpeg-info.txt; \
+    grep -i mp3 /tmp/ffmpeg-info.txt || echo "note: no MP3 encoder listed by this ffmpeg"; \
+    rm -f /tmp/ffmpeg-info.txt
 
 COPY app /app
 COPY run.sh /

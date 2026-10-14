@@ -11,11 +11,12 @@ The player has stopped getting answers from the server.
   and it should register without needing the broadcast.
 - The log should show `player <mac> at <ip>` shortly after the app starts.
 
-## The app does not build
+## Playback fails immediately, or the log says ffmpeg is missing the MP3 encoder
 
-The Dockerfile checks that ffmpeg can encode MP3 and stops with `this ffmpeg build lacks the
-libmp3lame encoder` if not. The SLIMP3 decodes MP3 only, so that is a hard requirement. Open an issue
-with the full build log.
+At startup the app logs either `ffmpeg ok: libmp3lame encoder present` or `ERROR: ffmpeg has no libmp3lame MP3
+encoder...` followed by what ffmpeg itself printed. The SLIMP3 decodes MP3 only, so the encoder is required.
+Open an issue with that log line. (The container build also prints the first ffmpeg version line and any MP3
+encoders it finds, for the same purpose.)
 
 ## The sidebar page is empty or shows no source
 

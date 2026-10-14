@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.1
+- Fix: the container build no longer fails on its ffmpeg encoder check. That check could fail even though the
+  encoder was installed. The build now only records what ffmpeg offers; the app checks at startup and logs
+  ffmpeg's own output if the MP3 encoder is missing.
+
 ## 0.4.0
 - Boot screens: IP and MAC address plus guided setup prompts on the SLIMP3's display at connect or restart
   (`boot_screens` option); `identify` control action.

@@ -4,6 +4,7 @@ import asyncio
 import ipaddress
 import json
 import os
+import subprocess
 import time
 
 from aiohttp import web
@@ -47,6 +48,21 @@ def load_options():
         return {}
 
 
+def check_ffmpeg():
+    """The SLIMP3 decodes MP3 only, so ffmpeg must have the libmp3lame encoder."""
+    try:
+        r = subprocess.run(["ffmpeg", "-hide_banner", "-encoders"], capture_output=True, text=True, timeout=30)
+        text = (r.stdout or "") + (r.stderr or "")
+        if "libmp3lame" in text:
+            log("ffmpeg ok: libmp3lame encoder present")
+            return True
+        log("ERROR: ffmpeg has no libmp3lame MP3 encoder, so playback will fail. ffmpeg exit %s, said: %s"
+            % (r.returncode, " | ".join(text.strip().splitlines()[:6])[:400]))
+    except Exception as e:
+        log("ERROR: cannot run ffmpeg: %s" % e)
+    return False
+
+
 class App:
     def __init__(self, opts):
         self.opts = opts
@@ -59,6 +75,7 @@ class App:
             "sync_ms": int(opts.get("sync_ms", 0)),
             "use_spectrum": bool(opts.get("spectrum", True)),
         }
+        check_ffmpeg()
         ms = selftest()
         fps = int(opts.get("display_fps", 8))
         self.spectrum_ok = ms is not None and ms < 500.0 / fps   # may use at most half a frame period
