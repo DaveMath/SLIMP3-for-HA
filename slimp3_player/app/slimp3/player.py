@@ -1,0 +1,170 @@
+# SPDX-License-Identifier: GPL-2.0-only
+import asyncio
+
+from . import mas3507d
+from .nowplaying import NowPlaying
+from .protocol import display_packet, i2c_packet
+from .spectrum import Spectrum
+from .stream import Stream
+
+FFMPEG = "ffmpeg"
+
+
+class Player:
+    """One SLIMP3 device: display, volume, queue, and MP3 streaming via ffmpeg."""
+
+    def __init__(self, server, mac, addr, log=print):
+        self.server, self.mac, self.addr, self.log = server, mac, addr, log
+        self.loop = asyncio.get_event_loop()
+        self.volume = 40
+        self.fps = 8
+        self.sync_ms = 0
+        self.use_spectrum = True
+        self.stream = None
+        self.proc = None
+        self.spectrum = None
+        self._np_task = None
+        self._runner = None
+        self.meta = {}
+        self.queue = []
+        self.index = -1
+        self.ended = asyncio.Event()
+        self.on_ir = None
+
+    # ---- device I/O -------------------------------------------------
+    def _send(self, data):
+        self.server.send(self.addr, data)
+
+    def show(self, line1, line2=""):
+        self._send(display_packet(line1, line2))
+
+    def set_volume(self, vol):
+        self.volume = max(0, min(100, int(vol)))
+        self._send(i2c_packet(mas3507d.volume(self.volume)))
+
+    def position(self):
+        return self.stream.position() if self.stream else 0.0
+
+    def status(self):
+        state = self.stream.state if self.stream else "stop"
+        return {"mac": self.mac, "ip": self.addr[0], "state": state,
+                "position": round(self.position(), 1), "volume": self.volume,
+                "meta": self.meta if self.stream else {}, "index": self.index,
+                "queue_len": len(self.queue)}
+
+    # ---- queue ------------------------------------------------------
+    async def play_queue(self, items, start=0):
+        """items: dicts with url/title/artist/album. Plays through, then goes idle."""
+        await self._cancel_runner()
+        self.queue, self.index = list(items), start - 1
+        self._runner = self.loop.create_task(self._run_queue())
+
+    async def _run_queue(self):
+        try:
+            while self.index + 1 < len(self.queue):
+                self.index += 1
+                it = self.queue[self.index]
+                try:
+                    await self.play(it["url"], it.get("title") or "", it.get("artist") or "",
+                                    it.get("album") or "")
+                except Exception as e:  # keep the queue moving on a bad track
+                    self.log("play failed: %s" % e)
+                    continue
+                await self.ended.wait()
+            await self._halt()
+            self.show("Queue finished", "")
+        except asyncio.CancelledError:
+            pass
+
+    def next(self):
+        if self.queue and self.index + 1 < len(self.queue):
+            self.ended.set()
+
+    def prev(self):
+        if self.queue and self.index > 0:
+            self.index -= 2
+            self.ended.set()
+
+    async def _cancel_runner(self):
+        r, self._runner = self._runner, None
+        if r and r is not asyncio.current_task():
+            r.cancel()
+            try:
+                await r
+            except asyncio.CancelledError:
+                pass
+
+    # ---- single-track playback --------------------------------------
+    async def play(self, source, title="", artist="", album="", duration=None):
+        await self._halt()
+        cmd = [FFMPEG, "-nostdin", "-v", "error", "-i", source]
+        if duration:
+            cmd += ["-t", str(duration)]
+        cmd += ["-vn", "-map_metadata", "-1", "-c:a", "libmp3lame", "-b:a", "128k",
+                "-ar", "44100", "-ac", "2", "-write_xing", "0", "-id3v2_version", "0",
+                "-f", "mp3", "pipe:1"]
+        self.proc = await asyncio.create_subprocess_exec(
+            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        self.meta = {"title": title or source.rsplit("/", 1)[-1], "artist": artist, "album": album}
+        if self.use_spectrum:
+            self.spectrum = Spectrum(source, FFMPEG, duration)
+            self.spectrum.start()
+        self.ended.clear()
+        s = Stream(self.loop, self._send, self._read, self.log)
+        s.on_end = self._finished
+        s.on_dead = self._finished
+        s.on_started = self._started
+        self.stream = s
+        self.set_volume(self.volume)
+        self._send(i2c_packet(mas3507d.init_sequence()))
+        await asyncio.sleep(0.05)         # let the player digest the i2c writes
+        self.show("Buffering...", self.meta["title"])
+        s.start()
+
+    def _started(self):
+        self._stop_display()
+        spec = self.spectrum if (self.spectrum and self.spectrum.available) else None
+        np_ = NowPlaying(self, self.meta, spec, self.fps, self.sync_ms)
+        self._np_task = self.loop.create_task(np_.run())
+
+    def _stop_display(self):
+        if self._np_task:
+            self._np_task.cancel()
+            self._np_task = None
+
+    def _finished(self):
+        self._stop_display()
+        self.ended.set()
+
+    async def _read(self, n):
+        try:
+            return await self.proc.stdout.readexactly(n)
+        except asyncio.IncompleteReadError as e:
+            return e.partial
+
+    def pause(self):
+        if self.stream:
+            self.stream.pause()
+
+    def resume(self):
+        if self.stream:
+            self.stream.resume()
+
+    async def _halt(self):
+        self._stop_display()
+        if self.spectrum:
+            self.spectrum.stop()
+            self.spectrum = None
+        if self.stream:
+            self.stream.stop()
+            self.stream = None
+        if self.proc and self.proc.returncode is None:
+            self.proc.kill()
+            await self.proc.wait()
+        self.proc = None
+
+    async def stop(self):
+        await self._cancel_runner()
+        await self._halt()
+        self.queue, self.index = [], -1
+        self.show("Stopped", "")

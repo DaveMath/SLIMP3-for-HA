@@ -1,0 +1,3 @@
+SLIMP3 player for Home Assistant
+Derived in part from Lyrion Music Server (slimserver), GPL-2.0.
+License: GPL-2.0-only. See https://github.com/LMS-Community/slimserver

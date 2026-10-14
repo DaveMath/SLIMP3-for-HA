@@ -1,0 +1,25 @@
+configuration:
+  dlna_servers:
+    name: DLNA / UPnP media servers
+    description: >-
+      Description URLs of your media servers, for example
+      http://192.168.1.10:32469/DeviceDescription.xml for the Plex DLNA server.
+  player_ips:
+    name: SLIMP3 addresses (optional)
+    description: >-
+      Only needed if a player does not find the server by itself. Leave empty
+      for normal broadcast discovery.
+  default_volume:
+    name: Default volume
+    description: Volume (0-100) used when a player first connects.
+  spectrum:
+    name: Spectrum analyzer
+    description: >-
+      Show a spectrum analyzer on the bottom display line. When off, the display
+      shows the artist on the top line and the track title on the bottom line.
+  display_fps:
+    name: Display frame rate
+    description: Display updates per second while the analyzer is running.
+  sync_ms:
+    name: Analyzer sync offset (ms)
+    description: Shift the analyzer earlier (negative) or later (positive) to match the sound.
