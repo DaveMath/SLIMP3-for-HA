@@ -33,11 +33,17 @@ configuration:
   default_volume:
     name: Default volume
     description: Volume (0-100) used when a player first connects.
-  spectrum:
-    name: Spectrum analyzer
+  mp3_passthrough:
+    name: Send MP3 files untouched
     description: >-
-      Show a spectrum analyzer on the bottom display line. When off, the display
-      shows the artist on the top line and the track title on the bottom line.
+      The SLIMP3 decodes MP3 itself, so MP3 files are sent as they are (no transcoding). Turn off to
+      convert everything to 128 kbps MP3 with ffmpeg instead, for example if a particular file will not play.
+  spectrum:
+    name: Spectrum analyzer (optional extra)
+    description: >-
+      Show a spectrum analyzer on the bottom display line. This needs a second decode of the audio and extra
+      memory, so it is off by default. When off, the display shows the artist on the top line and the title
+      on the bottom line.
   display_fps:
     name: Display frame rate
     description: Display updates per second while the analyzer is running.

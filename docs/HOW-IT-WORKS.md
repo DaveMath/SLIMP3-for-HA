@@ -46,8 +46,20 @@ firmware was checked against a SLIMP3 running firmware 2.2.
 
 ## Streaming audio
 
-The decoder chip only plays MP3, so every track goes through ffmpeg: 44.1 kHz stereo, 128 kbps CBR,
-no tags and no Xing header. ffmpeg reads the source directly (a local file or an HTTP URL).
+**Why the app is needed at all.** The SLIMP3 contains an MP3 decoder chip, but no network file client and
+no file system. It cannot fetch a URL or read a share; it only accepts audio bytes pushed into its buffer
+over UDP. The app is therefore a *feeder*, not a player. Slimserver is built the same way: its
+`convert.conf` says "SliMP3 supports only MP3", the rule `mp3 mp3 * *` is a plain pass-through (`-`), and only
+other formats are converted.
+
+- **MP3 sources (the normal case):** the bytes are read from the source (an HTTP URL or a file) and sent
+  to the player **unchanged**. Only a leading ID3v2 tag is skipped so the decoder starts on a real audio
+  frame. No ffmpeg process is started and no audio is decoded. The average bit rate is taken from the
+  file size and the DLNA duration (the first frame's bit rate is unreliable for VBR files, whose Xing header
+  frame reports a low rate); it only matters for position tracking.
+- **Everything else (FLAC, AAC, ...) and live TV:** ffmpeg converts to 44.1 kHz stereo, 128 kbps CBR MP3 with
+  no tags and no Xing header, and the bytes are fed the same way.
+- `mp3_passthrough: false` forces the ffmpeg path for everything.
 
 The player has a **128 KB circular buffer**, addressed in 16-bit words (64K words). The server pushes
 data into it and the player reports how much it has consumed:
@@ -95,7 +107,16 @@ writes a few screens to the display, with prompts chosen from the live configura
 display back. Starting playback or another connect within 20 seconds cancels or suppresses it. The Sonos
 display waits until the sequence has finished.
 
-## The spectrum analyzer
+## Footprint
+
+Measured on a Mac against a simulated SLIMP3 (not on Home Assistant hardware), streaming the same Plex MP3
+for 40 seconds of audio: pass-through used about **0.5 s of CPU** (13 ms per audio second) even though it sent
+twice as many bytes (the file is 261 kbps against the 128 kbps re-encode), and the ffmpeg path used about
+**1.1 s** (0.43 s in the app plus 0.64 s in ffmpeg). The simulated device runs inside the same process for both,
+so the app's own share is smaller than these numbers. Idle, the app does nothing but answer the player's
+10-second hello. While mirroring Sonos it sends no audio and one display packet when the text changes.
+
+## The spectrum analyzer (optional, off by default)
 
 The analyzer must show the audio **the player is playing now**, but the player buffers up to about
 eight seconds ahead of the audio you hear. So the app does not analyze what it just sent:
@@ -111,8 +132,9 @@ Because position comes from the player itself, the bars follow what you hear rat
 sent. `sync_ms` trims any remaining offset (decoder and output delays are not measured). The analysis
 assumes the 128 kbps CBR stream described above.
 
-If numpy is unavailable, or `spectrum` is off, the display uses the artist/title layout instead. At startup
-the app times the analyzer on its own host and logs the result (`spectrum analyzer: x ms per frame`). If a
+numpy is imported only when the analyzer is switched on. With it off, the display shows artist and title.
+When it is on, at startup the app times the analyzer on its own host and logs the result
+(`spectrum analyzer: x ms per frame`). If a
 frame would take more than half of a display frame period, or numpy is missing, it switches to the
 artist/title layout by itself. Live sources (a TV tuner) always skip the analyzer, because it reads the
 source separately from the audio sent to the player.
@@ -135,8 +157,9 @@ The monitor is **read-only**: it never sends a play, pause or volume command.
 - It asks any configured Sonos player for the household topology (UPnP `ZoneGroupTopology` on port 1400).
   That lists every group, its coordinator and its rooms. Invisible members (such as bonded subs and
   surrounds) are left out.
-- For each group coordinator it reads the transport state every 2 seconds. Only if the group is
-  playing does it also read the current media and track metadata (`AVTransport`).
+- For each group coordinator it reads the transport state every 3 seconds. Only if the group is
+  playing does it also read the current media and track metadata (`AVTransport`). It polls only while
+  some SLIMP3 is idle and wants to show Sonos; otherwise it sleeps.
 - The **station** line comes from the current item's title when its class is a radio broadcast, for
   example `CH 55 - SiriusXM Chill`. **Artist and title** come from the track metadata, or from the
   stream-content string some radio sources use.

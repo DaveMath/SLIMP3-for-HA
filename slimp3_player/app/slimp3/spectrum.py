@@ -8,11 +8,11 @@ try:
 except ImportError:  # analyzer is optional
     np = None
 
+from .nowplaying import BANDS, LEVELS
+
 RATE = 22050
 N = 1024
-BANDS = 40
 MAX_SECONDS = 900          # cap analysis memory (~40 MB)
-LEVELS = 7                 # a 5x7 character cell gives 7 bar heights
 
 
 class Spectrum:

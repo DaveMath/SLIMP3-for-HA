@@ -121,9 +121,14 @@ class SonosMonitor:
         self.groups = []
         self._ok = True
 
-    async def run(self, interval=2.0):
+    async def run(self, interval=3.0, needed=None):
+        """needed(): optional callable; while it returns False nothing is polled (no network, no CPU)."""
         loop = asyncio.get_event_loop()
         while True:
+            if needed is not None and not needed():
+                self.groups = []
+                await asyncio.sleep(5)
+                continue
             try:
                 self.groups = await loop.run_in_executor(None, poll_system, self.ips)
                 if not self._ok:

@@ -3,11 +3,20 @@ import asyncio
 
 from . import mas3507d
 from .nowplaying import NowPlaying
+from .mp3 import Mp3Source
 from .protocol import display_packet, i2c_packet
-from .spectrum import Spectrum
 from .stream import Stream
 
 FFMPEG = "ffmpeg"
+
+
+def _seconds(hms):
+    """'0:03:13.000' -> 193.0 (DLNA duration), or None."""
+    try:
+        h, m, s = (hms or "").split(":")
+        return int(h) * 3600 + int(m) * 60 + float(s) or None
+    except ValueError:
+        return None
 
 
 class Player:
@@ -19,9 +28,11 @@ class Player:
         self.volume = 40
         self.fps = 8
         self.sync_ms = 0
-        self.use_spectrum = True
+        self.use_spectrum = False
+        self.passthrough = True
         self.stream = None
         self.proc = None
+        self.reader = None
         self.spectrum = None
         self._np_task = None
         self._runner = None
@@ -73,8 +84,11 @@ class Player:
                 self.index += 1
                 it = self.queue[self.index]
                 try:
+                    proto = it.get("protocol") or ""
                     await self.play(it["url"], it.get("title") or "", it.get("artist") or "",
-                                    it.get("album") or "", live="Broadcast" in (it.get("class") or ""))
+                                    it.get("album") or "", live="Broadcast" in (it.get("class") or ""),
+                                    mp3=("audio/mpeg" in proto) if proto else None,
+                                    length_s=_seconds(it.get("duration")))
                 except Exception as e:  # keep the queue moving on a bad track
                     self.log("play failed: %s" % e)
                     continue
@@ -113,24 +127,45 @@ class Player:
             self.sonos_task.cancel()
             self.sonos_task = None
 
-    async def play(self, source, title="", artist="", album="", duration=None, live=False):
+    async def play(self, source, title="", artist="", album="", duration=None, live=False, mp3=None, length_s=None):
+        """MP3 sources are fed to the SLIMP3 untouched (it decodes MP3 itself). Anything else, and
+        live streams, are converted to 128 kbps MP3 by ffmpeg. mp3=None means: judge by the file name."""
         self.cancel_sonos()
         self.cancel_welcome()
         await self._halt()
-        cmd = [FFMPEG, "-nostdin", "-v", "error", "-i", source]
-        if duration:
-            cmd += ["-t", str(duration)]
-        cmd += ["-vn", "-map_metadata", "-1", "-c:a", "libmp3lame", "-b:a", "128k",
-                "-ar", "44100", "-ac", "2", "-write_xing", "0", "-id3v2_version", "0",
-                "-f", "mp3", "pipe:1"]
-        self.proc = await asyncio.create_subprocess_exec(
-            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        if mp3 is None:
+            mp3 = source.lower().split("?")[0].endswith(".mp3")
+        bytes_per_sec = 16000.0
+        if mp3 and self.passthrough and not live and not source.startswith("rtsp"):
+            try:
+                self.reader = await Mp3Source(source).open()
+                if self.reader.total_bytes and length_s:      # VBR-safe: true average rate
+                    bytes_per_sec = self.reader.total_bytes / float(length_s)
+                elif self.reader.bitrate:
+                    bytes_per_sec = self.reader.bitrate / 8.0
+                if duration:
+                    self.reader.limit_bytes(duration * bytes_per_sec)
+                self.log("pass-through MP3 (about %d kbps), no transcoding" % (bytes_per_sec * 8 / 1000))
+            except Exception as e:
+                self.log("pass-through failed (%s); transcoding instead" % e)
+                await self._close_reader()
+        if self.reader is None:
+            cmd = [FFMPEG, "-nostdin", "-v", "error", "-i", source]
+            if duration:
+                cmd += ["-t", str(duration)]
+            cmd += ["-vn", "-map_metadata", "-1", "-c:a", "libmp3lame", "-b:a", "128k",
+                    "-ar", "44100", "-ac", "2", "-write_xing", "0", "-id3v2_version", "0",
+                    "-f", "mp3", "pipe:1"]
+            self.proc = await asyncio.create_subprocess_exec(
+                *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
         self.meta = {"title": title or source.rsplit("/", 1)[-1], "artist": artist, "album": album}
-        if self.use_spectrum and not live:   # a live stream (tuner) must not be opened twice
+        if self.use_spectrum and not live:   # optional extra: needs numpy and a second decode of the source
+            from .spectrum import Spectrum
             self.spectrum = Spectrum(source, FFMPEG, duration)
             self.spectrum.start()
         self.ended.clear()
         s = Stream(self.loop, self._send, self._read, self.log)
+        s.bytes_per_sec = bytes_per_sec
         s.on_end = self._finished
         s.on_dead = self._finished
         s.on_started = self._started
@@ -157,10 +192,20 @@ class Player:
         self.ended.set()
 
     async def _read(self, n):
+        if self.reader is not None:
+            return await self.reader.read(n)
         try:
             return await self.proc.stdout.readexactly(n)
         except asyncio.IncompleteReadError as e:
             return e.partial
+
+    async def _close_reader(self):
+        r, self.reader = self.reader, None
+        if r is not None:
+            try:
+                await r.close()
+            except Exception:
+                pass
 
     def pause(self):
         if self.stream:
@@ -178,6 +223,7 @@ class Player:
         if self.stream:
             self.stream.stop()
             self.stream = None
+        await self._close_reader()
         if self.proc and self.proc.returncode is None:
             self.proc.kill()
             await self.proc.wait()

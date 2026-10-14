@@ -11,14 +11,16 @@ Written by @GGDM on Krystalize.AI local harness.
 ## What it does
 
 - **Plays your library on a SLIMP3.** Browse a Plex (DLNA) library from the Home Assistant sidebar,
-  play a track or a whole album, skip, pause, set volume. Audio is transcoded to the MP3 the SLIMP3's
-  decoder needs and streamed over the SLIMP3's own UDP protocol.
-- **Spectrum analyzer.** While the SLIMP3 plays music from this app, the display alternates
-  artist and title on the top line and shows a live 40-band spectrum analyzer on the bottom line.
-  It can be switched off, which shows the artist on the top line and the title on the bottom.
+  play a track or a whole album, skip, pause, set volume. The SLIMP3 decodes MP3 itself, so MP3 files are
+  sent to it **untouched** over its own UDP protocol (no transcoding, no audio processing). Other formats and
+  live TV are converted to MP3 by ffmpeg only when needed.
+- **Artist and title on the display** while playing: artist on the top line, title on the bottom.
+- **Spectrum analyzer (optional, off by default).** Switch it on and the bottom line becomes a live 40-band
+  analyzer, synced to what you hear. It costs a second decode of the audio and extra memory, so it is opt-in.
 - **Sonos now-playing.** When the SLIMP3 is idle, it mirrors a Sonos room: the station (for example
   `CH 55 - SiriusXM Chill`) on the top line and `Artist - Title` on the bottom line. Titles that fit
-  are shown still and centered; long ones scroll. Read-only: the app never controls Sonos.
+  are shown still and centered; long ones scroll. Read-only: the app never controls Sonos, and while
+  mirroring it does no audio work at all: only text, and a display update only when the text changes.
 - **Setup help on the player itself.** At connect or restart the SLIMP3's display shows its IP and MAC
   address and step-by-step prompts (name this player, add a music source, Sonos room not found).
 - **Multi-room.** Each SLIMP3 is matched by MAC address to its own settings, including which Sonos
@@ -60,9 +62,10 @@ ffmpeg's own output).
 Assistant app; a Sonos S2 system (Playbar and Connect, software 86.10) with SiriusXM. Development and
 all hardware tests ran the same application code on a Mac, driving that real hardware.
 
-**Not yet validated:** building and running the container inside Home Assistant (including whether the
-spectrum analyzer's speed is acceptable on your Home Assistant hardware: the app measures this itself at
-startup and falls back automatically); the boot screens' appearance on the real display (the code ran
+**Not yet validated:** building and running the container inside Home Assistant (if you enable the optional
+spectrum analyzer, the app measures its speed at startup and falls back automatically); **MP3 pass-through on the
+real SLIMP3** (it was verified against a simulated SLIMP3 and a real Plex file, and earlier playback on the real
+unit used the ffmpeg path; `mp3_passthrough: false` restores that path); very high bit rate MP3s on the SLIMP3; the boot screens' appearance on the real display (the code ran
 without errors on hardware, but nobody has confirmed the screens visually); playing a TV-tuner channel end to
 end on a SLIMP3; two or more SLIMP3
 players at the same time; any SLIMP3 firmware other than 2.2.

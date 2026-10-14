@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0
+- MP3 files are now sent to the SLIMP3 untouched (it decodes MP3 itself), as slimserver does. ffmpeg is used only
+  for other formats and live TV. `mp3_passthrough: false` restores converting everything.
+- The spectrum analyzer is now opt-in (off by default); numpy is not loaded unless it is enabled.
+- Display updates are sent only when the text changes (a still title: one packet per 10 seconds).
+- Sonos is polled only while a SLIMP3 is idle and wants to show it, every 3 seconds.
+
 ## 0.4.1
 - Fix: the container build no longer fails on its ffmpeg encoder check. That check could fail even though the
   encoder was installed. The build now only records what ffmpeg offers; the app checks at startup and logs

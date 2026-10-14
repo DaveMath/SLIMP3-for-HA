@@ -14,7 +14,8 @@ Changes apply after restarting the app.
 | `sonos_display` | `true` | Default for `show_sonos`: show Sonos on the display while the SLIMP3 is idle. |
 | `default_volume` | `40` | Volume (0-100) a player starts at. |
 | `boot_screens` | `true` | When a SLIMP3 connects or restarts, show its IP and MAC address and setup prompts on its display. |
-| `spectrum` | `true` | Spectrum analyzer on the bottom line while playing. Off: artist on the top line, title on the bottom. |
+| `mp3_passthrough` | `true` | Send MP3 files to the SLIMP3 untouched (it decodes MP3 itself). `false` converts everything to 128 kbps MP3 with ffmpeg. |
+| `spectrum` | `false` | Optional spectrum analyzer on the bottom line while playing (needs a second decode and extra memory). Off: artist on the top line, title on the bottom. |
 | `display_fps` | `8` | Display updates per second while the analyzer runs (1-15). |
 | `sync_ms` | `0` | Shift the analyzer earlier (negative) or later (positive) to line up with the sound (-2000 to 2000). |
 
@@ -27,7 +28,7 @@ Changes apply after restarting the app.
 | `sonos_room` | no | The Sonos room this player mirrors. Empty: mirror any playing Sonos group. |
 | `show_sonos` | no | `false` turns the Sonos display off for this player. |
 | `volume` | no | Starting volume for this player. |
-| `spectrum` | no | Overrides the global `spectrum` for this player. |
+| `spectrum` | no | Overrides the global `spectrum` for this player (set `true` to turn the analyzer on for just this player). |
 | `sync_ms` | no | Overrides the global `sync_ms` for this player. |
 
 A SLIMP3 with no `players` entry still works and uses the global defaults. The app logs
@@ -118,7 +119,7 @@ read an HDHomeRun channel's AC-3 5.1 audio and converted it to 128 kbps stereo M
 
 ## How a SLIMP3 chooses what to show
 
-1. If the SLIMP3 is playing music from this app, it shows that (spectrum or artist/title).
+1. If the SLIMP3 is playing music from this app, it shows that (artist and title, or the spectrum if enabled).
 2. Otherwise, if `show_sonos` is true and its `sonos_room` (or any room, if empty) is in a Sonos group
    that is playing, it shows that group's station and track.
 3. Otherwise it shows `SLIMP3 server ready`.

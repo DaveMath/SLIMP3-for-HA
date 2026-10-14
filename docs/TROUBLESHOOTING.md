@@ -30,6 +30,11 @@ Plex running as a container can advertise internal addresses in stream URLs; the
 address you configured. If playback still fails, check that the Plex host and port 32469 are reachable
 from Home Assistant, and look for an ffmpeg error in the app log.
 
+## One particular MP3 will not play, or sounds wrong
+
+MP3 files are sent to the SLIMP3 untouched. If one misbehaves (for example a very high bit rate file), set
+`mp3_passthrough: false` to convert everything to 128 kbps with ffmpeg, and open an issue with the file's bit rate.
+
 ## Music plays but stutters or restarts
 
 The log shows `buffer underrun, rebuffering` when the player's buffer runs dry. Usual causes are a
@@ -43,7 +48,7 @@ if different rooms differ.
 
 ## The spectrum analyzer is missing
 
-Look at the app log at startup for `spectrum analyzer: ...`. It reports the time per frame on your
+It is off by default; set `spectrum: true` (or per player). Then look at the app log at startup for `spectrum analyzer: ...`. It reports the time per frame on your
 hardware, and says `unavailable (numpy missing)` or `too slow, using artist/title layout` if it switched
 itself off. Live sources (TV tuners) never show the analyzer.
 

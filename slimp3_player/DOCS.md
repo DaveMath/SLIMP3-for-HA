@@ -33,10 +33,11 @@ players:
 
 ## Display
 
-While playing music from this app: top line alternates artist and title, bottom line is a 40-band
-spectrum analyzer (`spectrum: false` shows artist and title instead). When the SLIMP3 is idle and its
+While playing music from this app: artist on the top line, title on the bottom. MP3 files are sent to the
+SLIMP3 untouched (it decodes MP3 itself); other formats are converted by ffmpeg. Optional: `spectrum: true` turns
+the bottom line into a 40-band spectrum analyzer (it needs a second decode and extra memory, so it is off by default). When the SLIMP3 is idle and its
 Sonos room is playing: top line is the station (for example `CH 55 - SiriusXM Chill`), bottom line is
-`Artist - Title`. Text that fits is shown still; long text scrolls.
+`Artist - Title`. Text that fits is shown still; long text scrolls. While showing Sonos the app does no audio work.
 
 The app only reads from Sonos. It cannot get Sonos audio, so there is no spectrum for Sonos.
 

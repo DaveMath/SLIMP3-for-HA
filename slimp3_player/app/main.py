@@ -12,7 +12,6 @@ from aiohttp import web
 from slimp3.nowplaying import SonosNowPlaying
 from slimp3.server import Server
 from slimp3.sonos import SonosMonitor
-from slimp3.spectrum import selftest
 from slimp3.upnp import MediaServer
 
 OPTS_PATH = os.environ.get("SLIMP3_OPTIONS", "/data/options.json")
@@ -73,17 +72,25 @@ class App:
             "volume": int(opts.get("default_volume", 40)),
             "fps": int(opts.get("display_fps", 8)),
             "sync_ms": int(opts.get("sync_ms", 0)),
-            "use_spectrum": bool(opts.get("spectrum", True)),
+            "use_spectrum": bool(opts.get("spectrum", False)),
+            "passthrough": bool(opts.get("mp3_passthrough", True)),
         }
         check_ffmpeg()
-        ms = selftest()
-        fps = int(opts.get("display_fps", 8))
-        self.spectrum_ok = ms is not None and ms < 500.0 / fps   # may use at most half a frame period
-        if ms is None:
-            log("spectrum analyzer unavailable (numpy missing); using the artist/title layout")
+        wants_spectrum = bool(opts.get("spectrum", False)) or any(
+            c.get("spectrum") for c in (opts.get("players") or []))
+        self.spectrum_ok = False
+        if wants_spectrum:      # numpy is imported only if the analyzer is actually switched on
+            from slimp3.spectrum import selftest
+            ms = selftest()
+            fps = int(opts.get("display_fps", 8))
+            self.spectrum_ok = ms is not None and ms < 500.0 / fps   # at most half a frame period
+            if ms is None:
+                log("spectrum analyzer unavailable (numpy missing); using the artist/title layout")
+            else:
+                log("spectrum analyzer: %.1f ms per frame, budget %.0f ms at %d fps -> %s"
+                    % (ms, 500.0 / fps, fps, "ok" if self.spectrum_ok else "too slow, using artist/title layout"))
         else:
-            log("spectrum analyzer: %.1f ms per frame, budget %.0f ms at %d fps -> %s"
-                % (ms, 500.0 / fps, fps, "ok" if self.spectrum_ok else "too slow, using artist/title layout"))
+            log("spectrum analyzer is off (default): MP3 is passed straight through, no audio processing")
         self.server.on_new_player = self._new_player
         self.server.on_reboot = self.start_welcome
         self.sonos = SonosMonitor(opts.get("sonos_ips") or [], log)
@@ -238,6 +245,11 @@ class App:
             raise web.HTTPBadRequest(text="unknown action")
         return web.json_response(p.status())
 
+    def _sonos_needed(self):
+        """Poll Sonos only while some SLIMP3 is idle and wants to show it."""
+        return any(p.show_sonos and p.stream is None and p._runner is None
+                   for p in self.server.players.values())
+
     async def sonos_state(self, req):
         return web.json_response({"rooms": self.sonos.rooms(), "groups": self.sonos.groups})
 
@@ -272,7 +284,7 @@ class App:
         await runner.setup()
         await web.TCPSite(runner, "0.0.0.0", PORT).start()
         if self.sonos.ips:
-            asyncio.ensure_future(self.sonos.run())
+            asyncio.ensure_future(self.sonos.run(needed=self._sonos_needed))
             asyncio.ensure_future(self.sonos_display_loop())
         log("web UI/API on port %d; %d source(s), %d Sonos zone(s) configured"
             % (PORT, len(self.sources), len(self.sonos.ips)))
