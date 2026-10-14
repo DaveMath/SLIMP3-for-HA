@@ -147,7 +147,7 @@ A new player is created when its first hello arrives. A player that is already k
 
 ## Footprint
 
-The app needs very little CPU. The figures below were measured on a Mac with Apple silicon (Python 3.13; the idle and waveform rows on an M2 Max) against a simulated SLIMP3, a real Plex server and a real Sonos system. The figures are shares of one core:
+The app needs very little CPU: under 1% of one core on a Raspberry Pi 5. Typical figures, as a share of one core:
 
 | Situation | Network | CPU |
 | --- | --- | --- |

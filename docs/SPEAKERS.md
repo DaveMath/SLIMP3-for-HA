@@ -38,7 +38,7 @@ HomePods and HomePod minis are found with Bonjour (the discovery the Home app us
 - Besides push updates, the app asks each connected HomePod directly every 10 seconds, so a stop is never missed.
 - Info shows what each HomePod reports. If a HomePod reports `paused` (Ambient Sounds such as White Noise can do this), the SLIMP3 shows nothing for it, and Info shows exactly what the HomePod said.
 - pyatv imports a compiled audio package (`miniaudio`) that it uses only to stream audio *to* speakers. It has no prebuilt version for the app's container and this app never streams audio, so a small stand-in module (`app/stubs/miniaudio.py`) satisfies the import. The container installs pyatv from prebuilt packages only (no compiler); if that install fails, the app still runs without HomePod support, and Info says why.
-- Cost: with two HomePods connected and idle, about 0.10% of a Mac core and 5 MB of memory (six TCP connections). With nothing connected, about 0.03%.
+- Cost: with two HomePods connected and idle, about 0.10% of a core and 5 MB of memory (six TCP connections). With nothing connected, about 0.03%.
 - A HomePod's access setting in the Home app ("Speakers and TV access") can block unpaired listeners; the default works.
 
 ## Google Cast (Google Home, Nest, Chromecast)
