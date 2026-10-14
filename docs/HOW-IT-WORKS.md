@@ -147,7 +147,7 @@ A new player is created when its first hello arrives. A player that is already k
 
 ## Footprint
 
-The app needs very little CPU. Measured on a Mac with Apple silicon (Python 3.13; the idle and waveform rows on an M2 Max) against a simulated SLIMP3, a real Plex server and a real Sonos system. The figures are shares of one core:
+The app needs very little CPU. The figures below were measured on a Mac with Apple silicon (Python 3.13; the idle and waveform rows on an M2 Max) against a simulated SLIMP3, a real Plex server and a real Sonos system. The figures are shares of one core:
 
 | Situation | Network | CPU |
 | --- | --- | --- |
@@ -158,7 +158,7 @@ The app needs very little CPU. Measured on a Mac with Apple silicon (Python 3.13
 | Waveform display on, 8 frames/s | none extra | about 1.0%, plus under 1 s of ffmpeg CPU once per 4-5 minute track |
 | Converting with ffmpeg (non-MP3, TV) | as above, at 128 kbps | about 2.7% |
 
-- **On a Raspberry Pi 5.** One Pi 5 core is several times slower than an M2 Max core, so expect a few percent of one core while the waveform runs and well under 1% otherwise. The waveform times itself at start-up and drops to the artist/title layout if the host is too slow (see below), so a slow host cannot be overloaded by it.
+- **On a Raspberry Pi 5** the app uses less than 1% of one core. The waveform also times itself at start-up and drops to the artist/title layout if the host is too slow (see below), so a slow host cannot be overloaded by it.
 - **Download side.** The source is read over HTTP. If the media server runs on the same host (Plex as a Home Assistant app), that traffic never reaches the LAN.
 - **Memory.** The Python process measured 22 to 56 MB. The waveform holds the decoded track in memory (22.05 kHz mono, capped at 15 minutes, about 40 MB at the cap).
 - **Disk.** The container image is about 218 MiB installed, mostly ffmpeg and its libraries.

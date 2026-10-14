@@ -16,6 +16,7 @@ from slimp3.apple import AppleMonitor
 from slimp3.cast import CastMonitor
 from slimp3.net import local_ipv4s
 from slimp3.nowplaying import DEFAULT_SLEEP_KEYWORDS, SonosNowPlaying
+from slimp3.protocol import display_packet
 from slimp3.server import Server
 from slimp3.sonos import SonosMonitor
 from slimp3.upnp import MediaServer, discover_servers, resolve_server, short_name
@@ -26,6 +27,7 @@ VERSION = os.environ.get("SLIMP3_VERSION", "dev")
 UDP_PORT = int(os.environ.get("SLIMP3_UDP_PORT", "3483"))    # only a test setup changes this
 WEB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
 T0 = time.time()
+BLANK_AFTER = 4.0     # seconds with nothing playing on the mirrored speaker before the display goes black
 # Home Assistant's internal network (ingress gateway is 172.30.32.2); set SLIMP3_ALLOW_ALL=1 for local dev.
 ALLOWED = [ipaddress.ip_network(n) for n in ("127.0.0.0/8", "172.30.32.0/23")]
 ALLOW_ALL = os.environ.get("SLIMP3_ALLOW_ALL") == "1"
@@ -246,6 +248,11 @@ class App:
     # ---- boot / identify screens ------------------------------------
     def idle_screen(self, p):
         p.show("SLIMP3 server ready", ("%s  %s" % (p.name, p.addr[0])).strip())
+
+    def blank(self, p):
+        """Black display (0% brightness, blank lines). The next frame drawn restores full brightness."""
+        p._send(display_packet("", "", brightness=0x03))
+        p.blank_t = time.time()
 
     def start_welcome(self, p, force=False):
         """Show connection details and setup prompts on the player (at connect, restart, or on request)."""
@@ -501,9 +508,24 @@ class App:
                     p.sonos_task = asyncio.ensure_future(SonosNowPlaying(p, lambda p=p: self._mirror_state(p)).run())
                     log("showing %s on %s" % (p.apple_room or p.cast_room or p.sonos_room or "what is playing (any room)", p.name or p.mac))
                 elif p.sonos_task and not want:
-                    p.cancel_sonos()
-                    if idle:
-                        self.idle_screen(p)
+                    # The speaker stopped. Keep the last screen for a few seconds (tracks change, a pause can be brief),
+                    # then turn the display black until something plays again.
+                    if not idle:
+                        p.cancel_sonos()
+                        p.mirror_idle_since = 0.0
+                    else:
+                        now = time.time()
+                        p.mirror_idle_since = p.mirror_idle_since or now
+                        if now - p.mirror_idle_since >= BLANK_AFTER:
+                            p.cancel_sonos()
+                            p.mirror_idle_since = 0.0
+                            self.blank(p)
+                else:
+                    p.mirror_idle_since = 0.0
+                if not idle:
+                    p.blank_t = 0.0
+                elif p.blank_t and not p.sonos_task and time.time() - p.blank_t > 30:
+                    self.blank(p)               # refreshed now and then in case the display lost it
 
     async def apple_state(self, req):
         if self.apple.enabled and not self.apple.names():

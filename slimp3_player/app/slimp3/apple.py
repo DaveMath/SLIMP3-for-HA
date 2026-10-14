@@ -48,6 +48,7 @@ class AppleMonitor:
         self.error = ""            # why HomePod support is unavailable, if it is
         self._dev_err = {}         # name -> last connection error
         self._seen_t = {}          # name -> when the HomePod last reported
+        self._poll_t = {}          # name -> when the app last asked the HomePod directly
 
     # ---- discovery ---------------------------------------------------------------
     def available(self):
@@ -178,6 +179,16 @@ class AppleMonitor:
                         await self._connect(name)
                     elif not wanted and name in self._conns:
                         await self._disconnect(name)
+                # Push updates can be missed (a stop that is never announced would leave the display on the last
+                # song), so ask each connected HomePod directly every 10 seconds as well.
+                now = time.time()
+                for name, atv in list(self._conns.items()):
+                    if now - self._poll_t.get(name, 0) >= 10:
+                        self._poll_t[name] = now
+                        try:
+                            self._apply(name, await asyncio.wait_for(atv.metadata.playing(), 5))
+                        except Exception:
+                            pass
             except Exception as e:
                 self.log("HomePod monitor error: %s: %s" % (type(e).__name__, e))
                 await asyncio.sleep(10)

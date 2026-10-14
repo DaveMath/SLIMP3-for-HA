@@ -37,6 +37,8 @@ class Player:
         self._np_task = None
         self._runner = None
         self.sonos_task = None
+        self.mirror_idle_since = 0.0
+        self.blank_t = 0.0
         self.name = ""
         self.fw = ""
         self.configured = False

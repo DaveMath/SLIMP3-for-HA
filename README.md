@@ -20,7 +20,7 @@ Built on the [Krystalize.AI](https://krystalize.ai/) local harness.
 - **A dashboard tile.** The app installs a small Home Assistant integration that makes each SLIMP3 a media player, with Home Assistant's own media browser. See [docs/DASHBOARD.md](docs/DASHBOARD.md).
 - **Setup help on the player itself.** At connect the display shows its IP and MAC address and short prompts.
 - **Multi-room.** Each SLIMP3 is matched by MAC address to its own settings.
-- **Very little CPU.** MP3 is passed through without decoding, and the app idles at about 0% of a core. Even the waveform display measured about 1% of one core on an Apple M2 Max, so a Raspberry Pi 5 class host should need only a few percent. Details in [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md#footprint).
+- **Very little CPU.** MP3 is passed through without decoding, and the app idles at about 0% of a core. On a Raspberry Pi 5 it uses less than 1% of one core. Details in [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md#footprint).
 
 ## Requirements
 

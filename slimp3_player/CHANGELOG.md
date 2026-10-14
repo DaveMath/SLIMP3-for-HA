@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.12.1
+- When a mirrored Sonos, HomePod or Cast speaker stops or pauses, the display now goes black after 4 seconds instead of keeping the speaker's
+  name on screen. The next thing that plays restores it.
+- HomePods are also asked directly for their state every 10 seconds, in addition to push updates, so a stop that was never announced cannot
+  leave the last song on the display.
+- Documentation: Raspberry Pi 5 CPU use stated as under 1% of one core.
+
 ## 0.12.0
 - **Google Cast.** Google Home, Nest, Chromecast and Cast speaker groups are found automatically and shown on an idle SLIMP3's display like Sonos
   and HomePods (read-only, no Google account or login). New options `cast_discovery` and `cast_ips`, and `cast_room` in `players`. The Info
