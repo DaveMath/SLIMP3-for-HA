@@ -39,6 +39,7 @@ h2{margin:0 0 2px;font-size:16px}.sub{color:var(--dim);font-size:13px}
 .ico{width:36px;height:36px;border-radius:9px;background:var(--soft);color:var(--acc);display:flex;align-items:center;justify-content:center;flex:none}
 .item .t{flex:1;min-width:0}.item .t div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.item .s{color:var(--dim);font-size:13px}
 .chev{color:var(--dim)}
+.steps{margin:8px 0 0;padding-left:20px;color:var(--fg)}.steps li{margin:4px 0}.steps .sub{display:block}
 .empty{padding:30px 18px;text-align:center;color:var(--dim)}.empty h3{margin:8px 0 4px;color:var(--fg);font-size:16px}
 .disc{display:flex;gap:14px;align-items:flex-start}.disc .spin{width:26px;height:26px;border-width:3px;margin-top:2px}
 .disc ul{margin:8px 0 0;padding-left:18px;color:var(--dim);font-size:13px}
@@ -117,6 +118,9 @@ input[type=text],select{font:inherit;color:var(--fg);background:var(--card);bord
           <div class="row"><input type="text" id="addr" placeholder="Server address" autocomplete="off" onkeydown="if(event.key==='Enter')addByAddr()"><button class="btn primary" id="bAdd" onclick="addByAddr()">Add</button></div></div>
       </div>
       <div><h3>Sonos</h3><div class="sub" id="sonosInfo">Searching…</div></div>
+      <div><h3>Dashboard tile</h3>
+        <div class="sub" id="tileInfo"></div>
+        <ol class="steps" id="tileSteps"></ol></div>
     </div>
   </details>
 </main>
@@ -136,10 +140,10 @@ const cur=()=>S.players.find(p=>p.mac===S.sel)||S.players[0];
 
 /* ---------- status, player ---------- */
 async function poll(){try{const s=await api('api/state');
-  S.players=s.players;S.heard=s.heard;S.uptime=s.uptime;S.enabled=s.sonos_enabled;
+  S.integration=s.integration;S.players=s.players;S.heard=s.heard;S.uptime=s.uptime;S.enabled=s.sonos_enabled;
   if(!S.sel||!S.players.find(p=>p.mac===S.sel))S.sel=S.players[0]?S.players[0].mac:'';
   if(JSON.stringify(s.sources)!==JSON.stringify(S.sourcesSeen)){S.sourcesSeen=s.sources;loadSources();}
-  renderChips();renderPlayer();}catch(e){}}
+  renderChips();renderPlayer();renderTile();}catch(e){}}
 function renderChips(){const p=cur();let h='';
   h+=p?'<span class="chip ok"><span class="dot"></span>'+esc(p.name||p.ip)+' connected</span>':'<span class="chip"><span class="spin"></span>Searching for SLIMP3</span>';
   if(!S.enabled)h+='<span class="chip">Sonos off</span>';
@@ -201,6 +205,13 @@ function renderLibrary(){const root=!S.stack.length;
   if(root){$('#list').innerHTML=S.sources.length?S.sources.map(s=>'<div class="item" tabindex="0" role="button" onclick="openServer(\''+s.id+'\')" onkeydown="if(event.key===\'Enter\')openServer(\''+s.id+'\')"><span class="ico">'+ic('server')+'</span><div class="t"><div>'+esc(s.name)+'</div><div class="s">Browse this server</div></div><span class="chev">'+ic('chev')+'</span></div>').join(''):
     '<div class="empty">'+ic('server',36)+'<h3>No music servers yet</h3><div>Find your Plex or other DLNA server and add it.</div><div style="margin-top:14px"><button class="btn primary" onclick="openSettings()">Find servers</button></div></div>';return;}
   $('#list').innerHTML=S.items.length?S.items.map((it,n)=>'<div class="item" tabindex="0" role="button" onclick="openItem('+n+')" onkeydown="if(event.key===\'Enter\')openItem('+n+')"><span class="ico">'+ic(it.container?'folder':'note')+'</span><div class="t"><div>'+esc(it.title)+'</div><div class="s">'+esc([it.artist,it.duration&&it.duration.replace(/^0:/,'').replace(/\.\d+$/,'')].filter(Boolean).join('  -  '))+'</div></div>'+(it.container?'<span class="chev">'+ic('chev')+'</span>':'<span class="chev">'+ic('play',18)+'</span>')+'</div>').join(''):'<div class="empty">This folder is empty.</div>';}
+function renderTile(){const i=S.integration;if(!i)return;const steps=[];
+  $('#tileInfo').innerHTML=i.installed?'The SLIMP3 integration is installed in Home Assistant (version '+esc(i.version)+'). It makes each SLIMP3 a media player you can put on a dashboard.':'The app could not copy the integration into Home Assistant automatically, so the dashboard tile is not available yet. See the documentation for the manual steps.';
+  if(!i.installed){$('#tileSteps').innerHTML='';return;}
+  if(i.restart_needed)steps.push('Restart Home Assistant once: Settings, System, Restart. (Needed only the first time, and after an update of the integration.)');
+  steps.push('Settings, Devices and services, Add integration, then choose <b>SLIMP3</b>. The default address works for most installs.');
+  steps.push('On a dashboard: Edit, Add card, <b>Tile</b>, and choose your SLIMP3 player. Tap the tile to open the player, then use <b>Browse media</b> to pick music from your servers.');
+  $('#tileSteps').innerHTML=steps.map(x=>'<li>'+x+'</li>').join('');}
 function openSettings(){$('#settings').open=true;$('#settings').scrollIntoView({behavior:'smooth'});if(!S.foundOnce)findServers();}
 function openServer(id){const s=S.sources.find(x=>x.id===id);S.stack=[{src:id,id:'0',title:s?s.name:'Server'}];load();}
 function openItem(n){const it=S.items[n],top=S.stack[S.stack.length-1];

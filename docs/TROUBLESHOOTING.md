@@ -1,5 +1,11 @@
 # Troubleshooting
 
+## The dashboard tile or the SLIMP3 integration is missing
+
+See [DASHBOARD.md](DASHBOARD.md). In short: the app copies the integration into Home Assistant's configuration folder when
+it starts (the log says `installed the SLIMP3 Home Assistant integration`); Home Assistant must be restarted once before
+SLIMP3 appears under Add integration.
+
 ## The page says "Looking for your SLIMP3"
 
 The app is running but no player has announced itself yet. The page lists any address it has heard from. If it

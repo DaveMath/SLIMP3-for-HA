@@ -30,11 +30,13 @@ class MediaServer:
         self.description_url = description_url
         self.timeout = timeout
         self.name = None
+        self.udn = None
         self.control_url = None
 
     def connect(self):
         root = ET.fromstring(_http(self.description_url, timeout=self.timeout))
         self.name = root.findtext(".//d:device/d:friendlyName", namespaces=NS)
+        self.udn = root.findtext(".//d:device/d:UDN", namespaces=NS)
         base = root.findtext("d:URLBase", namespaces=NS) or self.description_url
         for svc in root.iterfind(".//d:service", NS):
             if (svc.findtext("d:serviceType", namespaces=NS) or "").startswith(
@@ -160,27 +162,41 @@ def resolve_server(text):
                      "DLNA option is switched on." % u.hostname)
 
 
+def _is_local(url):
+    return (urlsplit(url).hostname or "") in ("127.0.0.1", "localhost")
+
+
 def discover_servers(timeout=3.0):
     """Find DLNA/UPnP media servers: an SSDP search, plus Plex's DLNA port on this host (a Plex running as a
-    Home Assistant app does not answer the network search). Returns dicts with url, name, kind."""
-    found, seen = [], set()
+    Home Assistant app does not answer the network search). The same server can answer both ways, so results are
+    merged by the server's UDN (its unique identity); the address on this host is preferred because it does not
+    depend on the network address. Returns dicts with url, name, kind, udn."""
+    found = []
     for ip, (loc, srv) in ssdp_search("urn:schemas-upnp-org:device:MediaServer:1", timeout).items():
-        if not loc or loc in seen:
+        if not loc:
             continue
         kind = "Sonos" if "sonos" in srv.lower() else ("TV tuner" if "hdhomerun" in srv.lower() else "Media server")
         try:
-            name = MediaServer(loc, timeout=3).connect().name or loc
+            ms = MediaServer(loc, timeout=3).connect()
         except Exception:
             continue
-        seen.add(loc)
-        found.append({"url": loc, "name": name, "kind": kind})
-    for url in ("http://127.0.0.1:32469/DeviceDescription.xml",):
-        if url not in seen and _port_open("127.0.0.1", 32469, 0.5):
-            try:
-                found.append({"url": url, "name": MediaServer(url, timeout=3).connect().name or "Plex", "kind": "Plex on this host"})
-            except Exception:
-                pass
-    return sorted(found, key=lambda f: (f["kind"] == "Sonos", f["name"].lower()))
+        found.append({"url": loc, "name": ms.name or loc, "kind": kind, "udn": ms.udn or ""})
+    local = "http://127.0.0.1:32469/DeviceDescription.xml"
+    if _port_open("127.0.0.1", 32469, 0.5):
+        try:
+            ms = MediaServer(local, timeout=3).connect()
+            name = ms.name or "Plex"
+            found.append({"url": local, "name": name, "udn": ms.udn or "",
+                          "kind": "Plex on this host" if "plex" in name.lower() else "On this host"})
+        except Exception:
+            pass
+    best = {}
+    for f in found:
+        key = f["udn"] or f["url"]
+        cur = best.get(key)
+        if cur is None or (_is_local(f["url"]) and not _is_local(cur["url"])):
+            best[key] = f
+    return sorted(best.values(), key=lambda f: (f["kind"] == "Sonos", f["name"].lower()))
 
 
 async def aconnect(url):

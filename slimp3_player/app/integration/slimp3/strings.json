@@ -1,0 +1,13 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "SLIMP3",
+        "description": "Connect to the SLIMP3 Player app that is running in Home Assistant. The default address works for most installs.",
+        "data": {"host": "App address", "port": "Port"}
+      }
+    },
+    "error": {"cannot_connect": "Could not reach the SLIMP3 Player app. Check that it is started."},
+    "abort": {"already_configured": "SLIMP3 is already set up"}
+  }
+}

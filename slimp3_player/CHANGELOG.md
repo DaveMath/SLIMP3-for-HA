@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.0
+- **Dashboard tile.** The app installs a Home Assistant integration (SLIMP3) that makes each SLIMP3 a media player:
+  play, pause, stop, next, previous, volume, and a media browser (music servers, folders, tracks) with play buttons.
+  Add it as a Tile card; tapping it opens Home Assistant's own media browser.
+- **Fix: a music server could be listed twice** in Find servers when it answered both the network search and the check of
+  this host's Plex port. Results are now merged by the server's unique identity, and adding the same server twice is ignored.
+- The app accepts connections from the host's own addresses, so Home Assistant Core can reach it.
+
 ## 0.7.0
 - **Fix: Sonos did not show unless `sonos_ips` was filled in.** The Sonos monitor only started when addresses were
   configured, so automatic discovery never ran. It now starts whenever discovery is on.

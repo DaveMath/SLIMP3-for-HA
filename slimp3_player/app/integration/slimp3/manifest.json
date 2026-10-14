@@ -1,0 +1,13 @@
+{
+  "domain": "slimp3",
+  "name": "SLIMP3",
+  "version": "0.8.0",
+  "documentation": "https://github.com/DaveMath/SLIMP3-for-HA",
+  "issue_tracker": "https://github.com/DaveMath/SLIMP3-for-HA/issues",
+  "codeowners": ["@DaveMath"],
+  "config_flow": true,
+  "dependencies": [],
+  "integration_type": "hub",
+  "iot_class": "local_polling",
+  "requirements": []
+}

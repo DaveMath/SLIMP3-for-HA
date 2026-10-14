@@ -4,12 +4,15 @@ import asyncio
 import hashlib
 import ipaddress
 import json
+import shutil
+import uuid
 import os
 import subprocess
 import time
 
 from aiohttp import web
 
+from slimp3.net import local_ipv4s
 from slimp3.nowplaying import SonosNowPlaying
 from slimp3.server import Server
 from slimp3.sonos import SonosMonitor
@@ -29,7 +32,7 @@ ALLOW_ALL = os.environ.get("SLIMP3_ALLOW_ALL") == "1"
 async def guard(request, handler):
     if not ALLOW_ALL:
         try:
-            ok = any(ipaddress.ip_address(request.remote) in n for n in ALLOWED)
+            ok = any(ipaddress.ip_address(request.remote) in n for n in ALLOWED) or request.remote in local_ipv4s()
         except ValueError:
             ok = False
         if not ok:
@@ -62,6 +65,42 @@ def check_ffmpeg():
     except Exception as e:
         log("ERROR: cannot run ffmpeg: %s" % e)
     return False
+
+
+def install_integration(bases=("/homeassistant_config", "/config")):
+    """Copy the SLIMP3 Home Assistant integration (a media player with a media browser) into the Home Assistant
+    configuration folder, so it can be added under Settings, Devices & services. Needs the config map in config.yaml."""
+    src = os.path.join(os.path.dirname(os.path.abspath(__file__)), "integration", "slimp3")
+    status = {"installed": False, "version": None, "restart_needed": False, "path": None}
+    try:
+        with open(os.path.join(src, "manifest.json")) as f:
+            status["version"] = json.load(f)["version"]
+    except (OSError, ValueError, KeyError):
+        return status
+    for base in bases:
+        if not (os.path.isdir(base) and os.access(base, os.W_OK)):
+            continue
+        dest = os.path.join(base, "custom_components", "slimp3")
+        have = None
+        try:
+            with open(os.path.join(dest, "manifest.json")) as f:
+                have = json.load(f).get("version")
+        except (OSError, ValueError):
+            pass
+        try:
+            if have != status["version"]:
+                shutil.copytree(src, dest, dirs_exist_ok=True, ignore=shutil.ignore_patterns("__pycache__"))
+                status["restart_needed"] = True
+                log("installed the SLIMP3 Home Assistant integration %s (was %s) in %s; restart Home Assistant, "
+                    "then add SLIMP3 under Settings, Devices & services" % (status["version"], have or "not installed", dest))
+            else:
+                log("SLIMP3 Home Assistant integration %s is already installed" % have)
+            status.update(installed=True, path=dest)
+        except OSError as e:
+            log("could not install the Home Assistant integration into %s: %s" % (dest, e))
+        return status
+    log("Home Assistant config folder is not mapped into the app; the dashboard integration was not installed")
+    return status
 
 
 class App:
@@ -99,6 +138,8 @@ class App:
         self.cfg = {str(c.get("mac", "")).lower(): c for c in (opts.get("players") or [])}
         self.data_dir = os.environ.get("SLIMP3_DATA", "/data")
         self.saved = self._load_saved()      # settings made on the sidebar page; they override the options
+        self.instance_id = self._instance_id()
+        self.integration = install_integration()
         for u in opts.get("dlna_servers") or []:
             self._add_source(u, "config")
         for e in self._load_json("sources.json", []):
@@ -112,6 +153,18 @@ class App:
         except (OSError, ValueError):
             return default
 
+    def _instance_id(self):
+        """A stable id for this app instance (the Home Assistant integration uses it as its unique id)."""
+        data = self._load_json("instance.json", {})
+        if not data.get("id"):
+            data = {"id": uuid.uuid4().hex}
+            try:
+                with open(os.path.join(self.data_dir, "instance.json"), "w") as f:
+                    json.dump(data, f)
+            except OSError:
+                pass
+        return data["id"]
+
     def _add_source(self, url, origin, name=None):
         if not url:
             return None
@@ -119,7 +172,7 @@ class App:
         found = next((s for s in self.sources if s["id"] == sid), None)
         if found:
             return found
-        src = {"id": sid, "url": url, "server": None, "name": name or url, "origin": origin}
+        src = {"id": sid, "url": url, "server": None, "name": name or url, "origin": origin, "udn": ""}
         self.sources.append(src)
         return src
 
@@ -139,7 +192,7 @@ class App:
             if s["server"] is None:
                 try:
                     s["server"] = await loop.run_in_executor(None, MediaServer(s["url"], 4).connect)
-                    s["name"] = s["server"].name or s["name"]
+                    s["name"], s["udn"] = s["server"].name or s["name"], s["server"].udn or ""
                 except Exception as e:
                     log("music server %s not reachable yet: %s" % (s["url"], e))
 
@@ -262,7 +315,8 @@ class App:
             "sources": [{"id": s["id"], "name": s["name"]} for s in self.sources],
             "heard": [{"ip": ip, "ago": int(now - t)} for ip, t in self.server.heard.items()],
             "uptime": int(now - self.started), "udp_port": UDP_PORT,
-            "sonos_enabled": self.sonos.enabled})
+            "sonos_enabled": self.sonos.enabled, "instance_id": self.instance_id,
+            "integration": self.integration})
 
     async def sources_list(self, req):
         return web.json_response([{"id": s["id"], "name": s["name"], "url": s["url"], "origin": s["origin"]}
@@ -274,8 +328,11 @@ class App:
             srv = await asyncio.get_event_loop().run_in_executor(None, resolve_server, body.get("url"))
         except ValueError as e:
             raise web.HTTPBadRequest(text=str(e))
+        same = next((s for s in self.sources if srv.udn and s["udn"] == srv.udn), None)
+        if same:                                   # already listed (maybe under another address)
+            return web.json_response({"id": same["id"], "name": same["name"], "url": same["url"], "origin": same["origin"]})
         src = self._add_source(srv.description_url, "added", srv.name)
-        src["server"], src["name"] = srv, srv.name or src["name"]
+        src["server"], src["name"], src["udn"] = srv, srv.name or src["name"], srv.udn or ""
         self._save_sources()
         return web.json_response({"id": src["id"], "name": src["name"], "url": src["url"], "origin": src["origin"]})
 
@@ -292,9 +349,9 @@ class App:
     async def sources_discover(self, req):
         found = await asyncio.get_event_loop().run_in_executor(None, discover_servers)
         have_urls = {s["url"] for s in self.sources}
-        have_names = {s["name"] for s in self.sources if s["server"] is not None}
+        have_udns = {s["udn"] for s in self.sources if s["udn"]}
         for f in found:
-            f["added"] = f["url"] in have_urls or f["name"] in have_names
+            f["added"] = f["url"] in have_urls or (f["udn"] in have_udns if f["udn"] else False)
         return web.json_response(found)
 
     async def browse(self, req):
@@ -302,7 +359,14 @@ class App:
         oid, start = req.query.get("id", "0"), int(req.query.get("start", 0))
         loop = asyncio.get_event_loop()
         items, total = await loop.run_in_executor(None, srv.browse, oid, start, 200)
-        return web.json_response({"items": items, "total": total})
+        out = {"items": items, "total": total}
+        if req.query.get("title"):
+            try:
+                meta = await loop.run_in_executor(None, srv.metadata, oid)
+                out["title"] = (meta or {}).get("title") or ""
+            except Exception:
+                out["title"] = ""
+        return web.json_response(out)
 
     async def play(self, req):
         body = await req.json()

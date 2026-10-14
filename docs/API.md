@@ -21,11 +21,13 @@ For local development, set `SLIMP3_ALLOW_ALL=1` to lift the address check.
     "index": 3, "queue_len": 31
   }],
   "sources": [{"id": "1a2b3c4d", "name": "Plex Media Server: <host>"}],
-  "heard": [{"ip": "192.168.1.50", "ago": 12}], "uptime": 340, "udp_port": 3483, "sonos_enabled": true
+  "heard": [{"ip": "192.168.1.50", "ago": 12}], "uptime": 340, "udp_port": 3483, "sonos_enabled": true,
+  "instance_id": "e70a23d7...", "integration": {"installed": true, "version": "0.8.0", "restart_needed": false}
 }
 ```
 
-`heard` lists addresses that sent a discovery or hello packet recently (what the page shows while it is
+`instance_id` is a stable identity for this app (the integration uses it as its unique id). `integration` reports whether the
+Home Assistant integration was copied into the Home Assistant configuration folder. `heard` lists addresses that sent a discovery or hello packet recently (what the page shows while it is
 looking for a player). `state` is one of `stop`, `buffering`, `play`, `paused`, `rebuffer`, `eof`. `index` is the zero-based
 queue position. `position` is seconds of audio the decoder has consumed.
 
@@ -39,9 +41,9 @@ queue position. `position` is seconds of audio the decoder has consumed.
   `[{"url", "name", "kind", "added"}]`; `kind` is, for example, `Media server`, `TV tuner`, `Sonos` or
   `Plex on this host`.
 
-## `GET /api/browse?source=<id>&id=0&start=0`
+## `GET /api/browse?source=<id>&id=0&start=0[&title=1]`
 
-Lists the children of a DLNA container (`id=0` is the root). Returns `{"items": [...], "total": N}`.
+Lists the children of a DLNA container (`id=0` is the root). With `title=1` the reply also carries the folder's own `title`. Returns `{"items": [...], "total": N}`.
 Each item has `id`, `title`, `container` (true for folders), `artist`, `album`, `duration`, `url`.
 
 ## `POST /api/play`

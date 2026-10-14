@@ -17,6 +17,9 @@ Written by @GGDM on Krystalize.AI local harness.
 - **A clear web page** in the Home Assistant sidebar: connection status (it shows "Looking for your SLIMP3" and what it has
   heard on the network until the player connects), a music-server picker, a library browser with a Back button,
   and settings that save automatically.
+- **A dashboard tile.** The app installs a small Home Assistant integration that turns each SLIMP3 into a media
+  player. Put it on a dashboard as a Tile; tapping it opens Home Assistant's own media browser, with your music
+  servers, folders, Back navigation and play buttons. See [docs/DASHBOARD.md](docs/DASHBOARD.md).
 - **Artist and title on the display** while playing: artist on the top line, title on the bottom.
 - **Spectrum analyzer (optional, off by default).** Switch it on and the bottom line becomes a live 40-band
   analyzer, synced to what you hear. It costs a second decode of the audio and extra memory, so it is opt-in.
@@ -57,6 +60,7 @@ ffmpeg's own output).
 | --- | --- |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Every option, single-room and multi-room examples, finding MAC addresses, Sonos rooms and DLNA URLs |
 | [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) | Architecture, the SLIMP3 protocol, streaming engine, display, spectrum sync, Sonos, security |
+| [docs/DASHBOARD.md](docs/DASHBOARD.md) | The dashboard tile and media browser: setup, what it supports, troubleshooting |
 | [docs/API.md](docs/API.md) | The HTTP API behind the sidebar page |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common problems and fixes |
 
@@ -67,7 +71,9 @@ play, Back); one SLIMP3 (firmware 2.2); Plex Media Server 1.43.4 DLNA server run
 Assistant app; a Sonos S2 system (Playbar and Connect, software 86.10) with SiriusXM. Development and
 all hardware tests ran the same application code on a Mac, driving that real hardware.
 
-**Not yet validated:** the page inside Home Assistant's sidebar (ingress); Sonos discovery from inside the Home Assistant container (it works from a Mac on the same
+**Not yet validated:** the dashboard integration inside a running Home Assistant (it was tested by importing it into
+the real Home Assistant 2026.2.3 package and driving its media player against the real app and a real Plex server;
+the parts Home Assistant itself provides, such as the Tile card and the Browse media dialog, were not run); the page inside Home Assistant's sidebar (ingress); Sonos discovery from inside the Home Assistant container (it works from a Mac on the same
 network; the container uses the host network, so it is expected to work); building and running the container inside Home Assistant (if you enable the optional
 spectrum analyzer, the app measures its speed at startup and falls back automatically); **MP3 pass-through on the
 real SLIMP3** (it was verified against a simulated SLIMP3 and a real Plex file, and earlier playback on the real
