@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 """Spectrum analysis of the track being played, looked up by playback position."""
 import asyncio
+import time
 
 try:
     import numpy as np
@@ -88,3 +89,15 @@ class Spectrum:
             self.prev[i] = v
             out.append(int(round(v)))
         return out
+
+
+def selftest(frames=50):
+    """Average milliseconds to compute one analyzer frame on this machine, or None if numpy is missing."""
+    if np is None:
+        return None
+    sp = Spectrum("")
+    sp.pcm = bytearray(np.random.randint(-8000, 8000, RATE * 2, dtype=np.int16).tobytes())
+    t0 = time.perf_counter()
+    for i in range(frames):
+        sp.frame(0.2 + i * 0.02)
+    return (time.perf_counter() - t0) / frames * 1000.0

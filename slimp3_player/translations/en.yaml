@@ -25,6 +25,11 @@ configuration:
       One entry per SLIMP3, matched by MAC address (shown in the app log and in the sidebar page).
       name is a label, sonos_room is the Sonos room this player mirrors, show_sonos turns the Sonos
       display off for this player, and volume, spectrum and sync_ms override the defaults below.
+  boot_screens:
+    name: Show setup screens on the SLIMP3
+    description: >-
+      When a SLIMP3 connects or restarts, show its IP address and MAC address and step-by-step setup
+      prompts on its display.
   default_volume:
     name: Default volume
     description: Volume (0-100) used when a player first connects.

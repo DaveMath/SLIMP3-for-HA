@@ -40,6 +40,12 @@ the player. The SLIMP3 is a wired Ethernet device; keep that path clean.
 Adjust `sync_ms`: negative moves the bars earlier, positive later. Set it per player in `players`
 if different rooms differ.
 
+## The spectrum analyzer is missing
+
+Look at the app log at startup for `spectrum analyzer: ...`. It reports the time per frame on your
+hardware, and says `unavailable (numpy missing)` or `too slow, using artist/title layout` if it switched
+itself off. Live sources (TV tuners) never show the analyzer.
+
 ## The display shows garbage characters
 
 The display ROM is not Unicode. Titles are folded to ASCII and characters that cannot be folded show as

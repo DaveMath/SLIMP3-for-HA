@@ -86,6 +86,15 @@ Text rules: a title that fits in 40 characters is centered and still; a longer o
 with a separator between repeats. In the spectrum screen, the top line alternates artist and title,
 holding each for about three seconds (scrolling if long).
 
+## Boot screens
+
+A new player is created when its first hello arrives. A player that is already known and sends a
+discovery broadcast again has restarted. Either event starts the boot sequence (see
+[CONFIGURATION.md](CONFIGURATION.md#boot-screens-seeing-each-players-ip-and-mac)): a small task that
+writes a few screens to the display, with prompts chosen from the live configuration, then hands the
+display back. Starting playback or another connect within 20 seconds cancels or suppresses it. The Sonos
+display waits until the sequence has finished.
+
 ## The spectrum analyzer
 
 The analyzer must show the audio **the player is playing now**, but the player buffers up to about
@@ -102,7 +111,11 @@ Because position comes from the player itself, the bars follow what you hear rat
 sent. `sync_ms` trims any remaining offset (decoder and output delays are not measured). The analysis
 assumes the 128 kbps CBR stream described above.
 
-If numpy is unavailable, or `spectrum` is off, the display uses the artist/title layout instead.
+If numpy is unavailable, or `spectrum` is off, the display uses the artist/title layout instead. At startup
+the app times the analyzer on its own host and logs the result (`spectrum analyzer: x ms per frame`). If a
+frame would take more than half of a display frame period, or numpy is missing, it switches to the
+artist/title layout by itself. Live sources (a TV tuner) always skip the analyzer, because it reads the
+source separately from the audio sent to the player.
 
 ## Sources and the queue
 

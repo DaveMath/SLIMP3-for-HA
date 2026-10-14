@@ -13,6 +13,7 @@ Changes apply after restarting the app.
 | `players` | `[]` | Per-SLIMP3 settings, matched by MAC address. See below. |
 | `sonos_display` | `true` | Default for `show_sonos`: show Sonos on the display while the SLIMP3 is idle. |
 | `default_volume` | `40` | Volume (0-100) a player starts at. |
+| `boot_screens` | `true` | When a SLIMP3 connects or restarts, show its IP and MAC address and setup prompts on its display. |
 | `spectrum` | `true` | Spectrum analyzer on the bottom line while playing. Off: artist on the top line, title on the bottom. |
 | `display_fps` | `8` | Display updates per second while the analyzer runs (1-15). |
 | `sync_ms` | `0` | Shift the analyzer earlier (negative) or later (positive) to line up with the sound (-2000 to 2000). |
@@ -74,6 +75,47 @@ players:
 Each SLIMP3 has its own playback queue and its own ffmpeg process. The sidebar page has a player
 selector; play and control commands go to the selected player.
 
+## Boot screens: seeing each player's IP and MAC
+
+When a SLIMP3 connects, or restarts (it broadcasts a new discovery), the app takes over its display for
+about 15 seconds with a short guided sequence:
+
+1. `Connected to Home Assistant`
+2. `IP  192.168.1.50` and `MAC 00:04:20:xx:xx:xx` (held for five seconds so it can be read or photographed)
+3. A prompt that depends on the setup:
+   - Player not in `players`: `Optional: name this player` / `Add the MAC to 'players' in app config`.
+   - Player configured: `Player: <name>` and its Sonos room (or `Sonos: not set up`, `Sonos display: off`).
+   - Configured Sonos room not found: `Sonos room not found: <room>` and the list of real room names.
+4. `No music source set up yet` / `Add a DLNA server in app config`, if `dlna_servers` is empty.
+5. `Tip: add a Sonos address...`, for an unconfigured player when `sonos_ips` is empty.
+
+It then settles on `SLIMP3 server ready` with the player's name and IP. Starting playback interrupts the
+sequence at any point. Set `boot_screens: false` to turn it off.
+
+**Telling several players apart:** send `{"action": "identify"}` to `/api/control` (see [API.md](API.md))
+with the player's `mac` to run the sequence again on that unit.
+
+## Music sources (DLNA/UPnP)
+
+Sources are **listed by you** in `dlna_servers`; the app does not add servers automatically. Each server
+appears in the sidebar page's source selector, and you browse it exactly as the server presents itself:
+every library, folder, playlist or view the server exposes through its ContentDirectory is available,
+so several music folders or libraries all show up under that one server.
+
+Automatic discovery is not a reliable replacement. A search of the test network (UPnP/SSDP from a Mac)
+found a TV tuner and two Sonos players but **not** the Plex server, even though Plex's DLNA service was
+running and reachable by address. Give the URL explicitly.
+
+**Live TV tuners** such as an HDHomeRun publish their channels as a DLNA server (typically
+`http://<tuner>/dms/device.xml`). The audio of a channel can be played on the SLIMP3: in testing, ffmpeg
+read an HDHomeRun channel's AC-3 5.1 audio and converted it to 128 kbps stereo MP3. Notes:
+
+- Playing a channel occupies a tuner for as long as it plays.
+- The spectrum analyzer is skipped for live sources (it would open the stream a second time and occupy a
+  second tuner), so the display shows artist and title.
+- Only the ffmpeg conversion was tested against a tuner; playing a tuner channel end to end on a SLIMP3 has
+  not been tested.
+
 ## How a SLIMP3 chooses what to show
 
 1. If the SLIMP3 is playing music from this app, it shows that (spectrum or artist/title).
@@ -87,7 +129,7 @@ is ungrouped and stopped, that SLIMP3 shows nothing from Sonos even if another r
 
 ## Finding the values
 
-- **SLIMP3 MAC address:** printed in the app log when the player connects
+- **SLIMP3 MAC address:** shown on the player's own display at connect (see Boot screens), printed in the app log when the player connects
   (`player 00:04:20:... at 192.168.1.50 fw 2.2`), and shown in the sidebar page's player selector.
 - **Sonos IP address:** in the Sonos app (About My System) or your router's device list.
 - **Sonos room names:** open `/api/sonos` through the app (see [API.md](API.md)); the `rooms` list holds

@@ -27,6 +27,10 @@ class Player:
         self._runner = None
         self.sonos_task = None
         self.name = ""
+        self.fw = ""
+        self.configured = False
+        self.welcome_task = None
+        self.welcome_t = 0.0
         self.sonos_room = ""
         self.show_sonos = True
         self.meta = {}
@@ -51,7 +55,7 @@ class Player:
 
     def status(self):
         state = self.stream.state if self.stream else "stop"
-        return {"mac": self.mac, "name": self.name, "ip": self.addr[0], "state": state,
+        return {"mac": self.mac, "name": self.name, "fw": self.fw, "configured": self.configured, "ip": self.addr[0], "state": state,
                 "position": round(self.position(), 1), "volume": self.volume,
                 "meta": self.meta if self.stream else {}, "index": self.index,
                 "queue_len": len(self.queue)}
@@ -70,7 +74,7 @@ class Player:
                 it = self.queue[self.index]
                 try:
                     await self.play(it["url"], it.get("title") or "", it.get("artist") or "",
-                                    it.get("album") or "")
+                                    it.get("album") or "", live="Broadcast" in (it.get("class") or ""))
                 except Exception as e:  # keep the queue moving on a bad track
                     self.log("play failed: %s" % e)
                     continue
@@ -99,13 +103,19 @@ class Player:
                 pass
 
     # ---- single-track playback --------------------------------------
+    def cancel_welcome(self):
+        if self.welcome_task:
+            self.welcome_task.cancel()
+            self.welcome_task = None
+
     def cancel_sonos(self):
         if self.sonos_task:
             self.sonos_task.cancel()
             self.sonos_task = None
 
-    async def play(self, source, title="", artist="", album="", duration=None):
+    async def play(self, source, title="", artist="", album="", duration=None, live=False):
         self.cancel_sonos()
+        self.cancel_welcome()
         await self._halt()
         cmd = [FFMPEG, "-nostdin", "-v", "error", "-i", source]
         if duration:
@@ -116,7 +126,7 @@ class Player:
         self.proc = await asyncio.create_subprocess_exec(
             *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
         self.meta = {"title": title or source.rsplit("/", 1)[-1], "artist": artist, "album": album}
-        if self.use_spectrum:
+        if self.use_spectrum and not live:   # a live stream (tuner) must not be opened twice
             self.spectrum = Spectrum(source, FFMPEG, duration)
             self.spectrum.start()
         self.ended.clear()

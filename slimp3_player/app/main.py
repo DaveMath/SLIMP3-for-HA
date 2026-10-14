@@ -11,6 +11,7 @@ from aiohttp import web
 from slimp3.nowplaying import SonosNowPlaying
 from slimp3.server import Server
 from slimp3.sonos import SonosMonitor
+from slimp3.spectrum import selftest
 from slimp3.upnp import MediaServer
 
 OPTS_PATH = os.environ.get("SLIMP3_OPTIONS", "/data/options.json")
@@ -58,7 +59,16 @@ class App:
             "sync_ms": int(opts.get("sync_ms", 0)),
             "use_spectrum": bool(opts.get("spectrum", True)),
         }
+        ms = selftest()
+        fps = int(opts.get("display_fps", 8))
+        self.spectrum_ok = ms is not None and ms < 500.0 / fps   # may use at most half a frame period
+        if ms is None:
+            log("spectrum analyzer unavailable (numpy missing); using the artist/title layout")
+        else:
+            log("spectrum analyzer: %.1f ms per frame, budget %.0f ms at %d fps -> %s"
+                % (ms, 500.0 / fps, fps, "ok" if self.spectrum_ok else "too slow, using artist/title layout"))
         self.server.on_new_player = self._new_player
+        self.server.on_reboot = self.start_welcome
         self.sonos = SonosMonitor(opts.get("sonos_ips") or [], log)
         self.cfg = {str(c.get("mac", "")).lower(): c for c in (opts.get("players") or [])}
 
@@ -73,10 +83,66 @@ class App:
             p.use_spectrum = bool(c["spectrum"])
         if "sync_ms" in c:
             p.sync_ms = int(c["sync_ms"])
+        if not self.spectrum_ok:
+            p.use_spectrum = False
+        p.configured = bool(c)
         if not c:
             log("player %s has no entry in 'players'; using defaults" % p.mac)
         p.on_ir = lambda code: log("IR 0x%s" % code)
-        p.show("SLIMP3 server ready", "Home Assistant")
+        self.start_welcome(p)
+
+    # ---- boot / identify screens ------------------------------------
+    def idle_screen(self, p):
+        p.show("SLIMP3 server ready", ("%s  %s" % (p.name, p.addr[0])).strip())
+
+    def start_welcome(self, p, force=False):
+        """Show connection details and setup prompts on the player (at connect, restart, or on request)."""
+        if not force:
+            if not self.opts.get("boot_screens", True) or time.time() - p.welcome_t < 20:
+                return
+        p.welcome_t = time.time()
+        p.cancel_sonos()
+        p.cancel_welcome()
+        p.welcome_task = asyncio.ensure_future(self._welcome(p))
+
+    async def _welcome(self, p):
+        def ctr(t):
+            return t[:40].center(40)
+        try:
+            steps = [("Connected to Home Assistant", "SLIMP3-for-HA", 3.0),
+                     ("IP  " + p.addr[0], "MAC " + p.mac, 5.0)]
+            for a, b, secs in steps:
+                p.show(ctr(a), ctr(b))
+                await asyncio.sleep(secs)
+            c = self.cfg.get(p.mac.lower())
+            later = []
+            if c is None:
+                later.append(("Optional: name this player", "Add the MAC to 'players' in app config", 4.0))
+            else:
+                room = c.get("sonos_room") or ""
+                show = c.get("show_sonos", self.opts.get("sonos_display", True))
+                if not self.sonos.ips:
+                    sonos = "Sonos: not set up"
+                elif not show:
+                    sonos = "Sonos display: off"
+                else:
+                    sonos = "Sonos room: " + room if room else "Sonos: any playing room"
+                later.append(("Player: " + (c.get("name") or "(unnamed)"), sonos, 4.0))
+                if room and show and self.sonos.groups and room.lower() not in [r.lower() for r in self.sonos.rooms()]:
+                    later.append(("Sonos room not found: " + room, "Rooms: " + ", ".join(self.sonos.rooms()), 6.0))
+            if not self.sources:
+                later.append(("No music source set up yet", "Add a DLNA server in app config", 4.0))
+            if not self.sonos.ips and c is None:
+                later.append(("Tip: add a Sonos address in", "app config to see what it plays", 4.0))
+            for a, b, secs in later:
+                p.show(ctr(a), ctr(b))
+                await asyncio.sleep(secs)
+            self.idle_screen(p)
+        except asyncio.CancelledError:
+            pass
+        finally:
+            if p.welcome_task is asyncio.current_task():
+                p.welcome_task = None
 
     def player(self, mac=None):
         ps = self.server.players
@@ -147,6 +213,8 @@ class App:
             p.next()
         elif act == "prev":
             p.prev()
+        elif act == "identify":
+            self.start_welcome(p, force=True)
         elif act == "volume":
             p.set_volume(int(body["value"]))
         else:
@@ -161,7 +229,7 @@ class App:
         while True:
             await asyncio.sleep(1)
             for p in self.server.players.values():
-                idle = p.stream is None and p._runner is None
+                idle = p.stream is None and p._runner is None and p.welcome_task is None
                 room = p.sonos_room
                 want = idle and p.show_sonos and self.sonos.active(room) is not None
                 if want and not p.sonos_task:
@@ -171,7 +239,7 @@ class App:
                 elif p.sonos_task and not want:
                     p.cancel_sonos()
                     if idle:
-                        p.show("SLIMP3 server ready", "Home Assistant")
+                        self.idle_screen(p)
 
     async def index(self, req):
         return web.FileResponse(os.path.join(WEB, "index.html"))

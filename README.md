@@ -19,6 +19,8 @@ Written by @GGDM on Krystalize.AI local harness.
 - **Sonos now-playing.** When the SLIMP3 is idle, it mirrors a Sonos room: the station (for example
   `CH 55 - SiriusXM Chill`) on the top line and `Artist - Title` on the bottom line. Titles that fit
   are shown still and centered; long ones scroll. Read-only: the app never controls Sonos.
+- **Setup help on the player itself.** At connect or restart the SLIMP3's display shows its IP and MAC
+  address and step-by-step prompts (name this player, add a music source, Sonos room not found).
 - **Multi-room.** Each SLIMP3 is matched by MAC address to its own settings, including which Sonos
   room it mirrors.
 
@@ -57,7 +59,11 @@ message if the base image's ffmpeg lacks the MP3 encoder.
 Assistant app; a Sonos S2 system (Playbar and Connect, software 86.10) with SiriusXM. Development and
 all hardware tests ran the same application code on a Mac, driving that real hardware.
 
-**Not yet validated:** building and running the container inside Home Assistant; two or more SLIMP3
+**Not yet validated:** building and running the container inside Home Assistant (including whether the
+spectrum analyzer's speed is acceptable on your Home Assistant hardware: the app measures this itself at
+startup and falls back automatically); the boot screens' appearance on the real display (the code ran
+without errors on hardware, but nobody has confirmed the screens visually); playing a TV-tuner channel end to
+end on a SLIMP3; two or more SLIMP3
 players at the same time; any SLIMP3 firmware other than 2.2.
 
 **Not implemented:** SMB sources, seeking within a track, SLIMP3 remote-control button mapping (button

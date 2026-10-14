@@ -17,6 +17,7 @@ For local development, set `SLIMP3_ALLOW_ALL=1` to lift the address check.
     "mac": "00:04:20:12:34:56", "name": "Den", "ip": "192.168.1.50",
     "state": "play", "position": 41.2, "volume": 40,
     "meta": {"title": "...", "artist": "...", "album": "..."},
+    "fw": "2.2", "configured": true,
     "index": 3, "queue_len": 31
   }],
   "sources": [{"id": "0", "name": "Plex Media Server: <host>"}]
@@ -45,10 +46,10 @@ Playback continues through the container automatically. Returns `{"queued": N, "
 ## `POST /api/control`
 
 ```json
-{"action": "pause|resume|toggle|stop|next|prev|volume", "value": 40, "mac": "..."}
+{"action": "pause|resume|toggle|stop|next|prev|volume|identify", "value": 40, "mac": "..."}
 ```
 
-`value` is only used by `volume` (0-100). Returns the player's status.
+`value` is only used by `volume` (0-100). `identify` runs the boot screens (IP, MAC, prompts) on that player. Returns the player's status.
 
 ## `GET /api/sonos`
 

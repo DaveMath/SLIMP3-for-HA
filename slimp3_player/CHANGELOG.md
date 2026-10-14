@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0
+- Boot screens: IP and MAC address plus guided setup prompts on the SLIMP3's display at connect or restart
+  (`boot_screens` option); `identify` control action.
+- Startup self-test of the spectrum analyzer with automatic fallback to the artist/title layout.
+- Live sources (TV tuners) skip the analyzer so they use a single tuner.
+
 ## 0.3.0
 - Multi-room: per-player settings (`players`) matched by MAC address, including which Sonos room each
   SLIMP3 mirrors. The Sonos monitor now reads the whole household from any one Sonos address.
