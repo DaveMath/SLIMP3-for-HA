@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.13.1
+- Saving the Configuration tab no longer fails with "Missing option 'paused_screen_seconds'" on installs updated from an earlier version. The option is now optional and defaults to 300.
+
 ## 0.13.0
 - A paused Sonos, HomePod or Cast speaker now shows `Paused <room>` over the track instead of going black. It stays for
   `paused_screen_seconds` (new option, default 300), then the display goes black. A stopped speaker still blanks after about 4 seconds.
