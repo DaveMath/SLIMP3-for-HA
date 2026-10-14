@@ -157,6 +157,14 @@ frame would take more than half of a display frame period, or numpy is missing, 
 artist/title layout by itself. Live sources (a TV tuner) always skip the analyzer, because it reads the
 source separately from the audio sent to the player.
 
+## Network discovery
+
+Sonos players and DLNA servers are found with an SSDP (multicast) search. On a host with several network
+interfaces (wired, Wi-Fi, container bridges) a single search may leave by the wrong one, so on Linux the search
+is sent on the default route and again on each interface address. The DLNA server search also tries Plex's DLNA
+port on the host the app runs on, because a Plex running as a Home Assistant app does not answer the network
+search.
+
 ## Sources and the queue
 
 `slimp3/upnp.py` speaks UPnP ContentDirectory (SOAP `Browse`) to a DLNA server. Plex's DLNA server is

@@ -20,14 +20,26 @@ For local development, set `SLIMP3_ALLOW_ALL=1` to lift the address check.
     "fw": "2.2", "configured": true,
     "index": 3, "queue_len": 31
   }],
-  "sources": [{"id": "0", "name": "Plex Media Server: <host>"}]
+  "sources": [{"id": "1a2b3c4d", "name": "Plex Media Server: <host>"}],
+  "heard": [{"ip": "192.168.1.50", "ago": 12}], "uptime": 340, "udp_port": 3483, "sonos_enabled": true
 }
 ```
 
-`state` is one of `stop`, `buffering`, `play`, `paused`, `rebuffer`, `eof`. `index` is the zero-based
+`heard` lists addresses that sent a discovery or hello packet recently (what the page shows while it is
+looking for a player). `state` is one of `stop`, `buffering`, `play`, `paused`, `rebuffer`, `eof`. `index` is the zero-based
 queue position. `position` is seconds of audio the decoder has consumed.
 
-## `GET /api/browse?source=0&id=0&start=0`
+## Music servers
+
+- `GET /api/sources`: the music servers, `[{"id", "name", "url", "origin": "config" | "added"}]`.
+- `POST /api/sources` with `{"url": "192.168.1.10"}`: adds a server. A bare address is enough; the app tries the
+  usual DLNA ports and descriptor paths. Returns the server, or `400` with a readable reason.
+- `DELETE /api/sources?id=<id>`: removes a server that was added on the page (`400` for configuration servers).
+- `GET /api/discover/servers`: searches the network (takes a few seconds) and returns
+  `[{"url", "name", "kind", "added"}]`; `kind` is, for example, `Media server`, `TV tuner`, `Sonos` or
+  `Plex on this host`.
+
+## `GET /api/browse?source=<id>&id=0&start=0`
 
 Lists the children of a DLNA container (`id=0` is the root). Returns `{"items": [...], "total": N}`.
 Each item has `id`, `title`, `container` (true for folders), `artist`, `album`, `duration`, `url`.

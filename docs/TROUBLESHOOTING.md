@@ -1,5 +1,12 @@
 # Troubleshooting
 
+## The page says "Looking for your SLIMP3"
+
+The app is running but no player has announced itself yet. The page lists any address it has heard from. If it
+says "Nothing heard yet", the player is off, on another network segment, or its broadcast is not reaching Home
+Assistant. After a minute and a half the page suggests setting `player_ips` in the configuration, which makes the
+app contact the player directly instead of waiting for it.
+
 ## The SLIMP3 says "cannot connect to SLIMP3 server"
 
 The player has stopped getting answers from the server.

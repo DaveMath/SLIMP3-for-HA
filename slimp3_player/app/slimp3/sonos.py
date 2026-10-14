@@ -5,10 +5,11 @@ import asyncio
 import html
 import http.client
 import re
-import socket
 import threading
 import time
 import xml.etree.ElementTree as ET
+
+from .net import ssdp_search
 
 AVT = ("/MediaRenderer/AVTransport/Control", "AVTransport")
 ZGT = ("/ZoneGroupTopology/Control", "ZoneGroupTopology")
@@ -140,26 +141,7 @@ def _read_group(cip):
 
 def discover(timeout=3.0):
     """SSDP search for Sonos players (device type ZonePlayer). Returns their IP addresses."""
-    msg = ("M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 2\r\n"
-           "ST: urn:schemas-upnp-org:device:ZonePlayer:1\r\n\r\n").encode()
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
-    s.settimeout(0.5)
-    found = []
-    try:
-        for _ in range(2):
-            s.sendto(msg, ("239.255.255.250", 1900))
-        end = time.time() + timeout
-        while time.time() < end:
-            try:
-                _, addr = s.recvfrom(4096)
-            except socket.timeout:
-                continue
-            if addr[0] not in found:
-                found.append(addr[0])
-    finally:
-        s.close()
-    return sorted(found)
+    return sorted(ssdp_search("urn:schemas-upnp-org:device:ZonePlayer:1", timeout))
 
 
 class SonosMonitor:
@@ -173,6 +155,11 @@ class SonosMonitor:
         self.groups = []
         self._topo, self._topo_t = [], 0.0
         self._ok = True
+
+    @property
+    def enabled(self):
+        """Sonos support is on if there are addresses to ask or discovery is allowed."""
+        return bool(self.ips or self.discovery)
 
     def _seeds(self, force=False):
         """Addresses to ask for the household layout: configured ones plus whatever discovery finds."""

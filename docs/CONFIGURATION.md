@@ -7,7 +7,7 @@ Changes apply after restarting the app.
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `dlna_servers` | `[]` | List of DLNA/UPnP media server description URLs. For Plex's DLNA server: `http://<host>:32469/DeviceDescription.xml`. |
+| `dlna_servers` | `[]` | Optional. DLNA/UPnP media server description URLs written in the configuration. You can also add servers on the sidebar page (see below). For Plex's DLNA server: `http://<host>:32469/DeviceDescription.xml`. |
 | `player_ips` | `[]` | Optional SLIMP3 addresses. Only needed if a player does not find the server by broadcast. The app sends these addresses a hello until the player registers. |
 | `sonos_ips` | `[]` | Optional. Sonos players are found automatically; add an address only if discovery cannot see them (for example another network segment). One address is enough, the app reads the whole household from it. |
 | `sonos_discovery` | `true` | Search the network for Sonos players. `false` uses only `sonos_ips`. |
@@ -95,11 +95,11 @@ about 15 seconds with a short guided sequence:
 1. `Connected to Home Assistant`
 2. `IP  192.168.1.50` and `MAC 00:04:20:xx:xx:xx` (held for five seconds so it can be read or photographed)
 3. A prompt that depends on the setup:
-   - Player not in `players`: `Optional: name this player` / `Add the MAC to 'players' in app config`.
+   - Player not named yet: `Optional: name this player` / `HA sidebar > SLIMP3 > Settings`.
    - Player configured: `Player: <name>` and its Sonos room (or `Sonos: not set up`, `Sonos display: off`).
    - Configured Sonos room not found: `Sonos room not found: <room>` and the list of real room names.
 4. `No music source set up yet` / `Add a DLNA server in app config`, if `dlna_servers` is empty.
-5. `Tip: add a Sonos address...`, for an unconfigured player when `sonos_ips` is empty.
+5. `Tip: add a Sonos address...`, only when Sonos is switched off (`sonos_discovery: false` and no `sonos_ips`).
 
 It then settles on `SLIMP3 server ready` with the player's name and IP. Starting playback interrupts the
 sequence at any point. Set `boot_screens: false` to turn it off.
@@ -109,14 +109,18 @@ with the player's `mac` to run the sequence again on that unit.
 
 ## Music sources (DLNA/UPnP)
 
-Sources are **listed by you** in `dlna_servers`; the app does not add servers automatically. Each server
-appears in the sidebar page's source selector, and you browse it exactly as the server presents itself:
+Music servers come from two places: `dlna_servers` in the configuration, and the ones **you add on the sidebar page**
+(Settings, Music servers). On the page, **Find servers** searches the network (and this host's Plex DLNA port) and
+lists what it finds with an Add button; or type just an address such as `192.168.1.10` and the app works out the
+rest. Servers added on the page are saved in the app's data folder and can be removed there; servers from the
+configuration can only be removed in the configuration. You browse a server exactly as it presents itself:
 every library, folder, playlist or view the server exposes through its ContentDirectory is available,
 so several music folders or libraries all show up under that one server.
 
-Automatic discovery is not a reliable replacement. A search of the test network (UPnP/SSDP from a Mac)
-found a TV tuner and two Sonos players but **not** the Plex server, even though Plex's DLNA service was
-running and reachable by address. Give the URL explicitly.
+Find servers is a convenience, not a guarantee: a network search of the test network found a TV tuner and two
+Sonos players but **not** the Plex server, even though Plex's DLNA service was running and reachable by address.
+The search therefore also tries Plex's DLNA port on the host the app runs on, and you can always add a server by
+address.
 
 **Live TV tuners** such as an HDHomeRun publish their channels as a DLNA server (typically
 `http://<tuner>/dms/device.xml`). The audio of a channel can be played on the SLIMP3: in testing, ffmpeg

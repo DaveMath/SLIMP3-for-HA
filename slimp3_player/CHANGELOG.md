@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.0
+- **Fix: Sonos did not show unless `sonos_ips` was filled in.** The Sonos monitor only started when addresses were
+  configured, so automatic discovery never ran. It now starts whenever discovery is on.
+- Redesigned sidebar page: connection status with a "Looking for your SLIMP3" screen (and the addresses it has heard),
+  a library browser with a Back button and breadcrumbs, a music-server picker (Find servers, or add by address), and
+  settings that save automatically.
+- Music servers can be added and removed on the page (saved in the app's data folder); `dlna_servers` is optional.
+- Network searches go out on every interface of the host (Linux).
+- The boot prompt for an unnamed player now points to the sidebar page.
+
 ## 0.6.0
 - Sonos players are discovered automatically (no addresses needed). The sidebar page has a name field and a Sonos
   room dropdown per player; choices apply immediately and are saved (they override the options file).

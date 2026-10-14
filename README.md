@@ -14,6 +14,9 @@ Written by @GGDM on Krystalize.AI local harness.
   play a track or a whole album, skip, pause, set volume. The SLIMP3 decodes MP3 itself, so MP3 files are
   sent to it **untouched** over its own UDP protocol (no transcoding, no audio processing). Other formats and
   live TV are converted to MP3 by ffmpeg only when needed.
+- **A clear web page** in the Home Assistant sidebar: connection status (it shows "Looking for your SLIMP3" and what it has
+  heard on the network until the player connects), a music-server picker, a library browser with a Back button,
+  and settings that save automatically.
 - **Artist and title on the display** while playing: artist on the top line, title on the bottom.
 - **Spectrum analyzer (optional, off by default).** Switch it on and the bottom line becomes a live 40-band
   analyzer, synced to what you hear. It costs a second decode of the audio and extra memory, so it is opt-in.
@@ -59,11 +62,12 @@ ffmpeg's own output).
 
 ## Status
 
-**Tested with:** one SLIMP3 (firmware 2.2); Plex Media Server 1.43.4 DLNA server running as a Home
+**Tested with:** the web page driven in headless Chrome against a simulated player and a real Plex server (browse,
+play, Back); one SLIMP3 (firmware 2.2); Plex Media Server 1.43.4 DLNA server running as a Home
 Assistant app; a Sonos S2 system (Playbar and Connect, software 86.10) with SiriusXM. Development and
 all hardware tests ran the same application code on a Mac, driving that real hardware.
 
-**Not yet validated:** Sonos discovery from inside the Home Assistant container (it works from a Mac on the same
+**Not yet validated:** the page inside Home Assistant's sidebar (ingress); Sonos discovery from inside the Home Assistant container (it works from a Mac on the same
 network; the container uses the host network, so it is expected to work); building and running the container inside Home Assistant (if you enable the optional
 spectrum analyzer, the app measures its speed at startup and falls back automatically); **MP3 pass-through on the
 real SLIMP3** (it was verified against a simulated SLIMP3 and a real Plex file, and earlier playback on the real

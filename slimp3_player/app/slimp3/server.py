@@ -18,6 +18,7 @@ class Server(asyncio.DatagramProtocol):
         self.on_reboot = None
         self.transport = None
         self.last_seen = {}
+        self.heard = {}                 # address -> time of the last discovery/hello packet
         self.player_defaults = {}
 
     async def start(self, host="0.0.0.0", port=PORT):
@@ -48,6 +49,8 @@ class Server(asyncio.DatagramProtocol):
         if len(data) < 18:
             return
         t = chr(data[0])
+        if t in ("d", "h"):
+            self.heard[addr[0]] = time.time()
         if t == "d":
             self.send(addr, discovery_reply())
             self.send(addr, hello())

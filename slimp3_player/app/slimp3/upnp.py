@@ -3,8 +3,12 @@
 import asyncio
 import urllib.request
 import xml.etree.ElementTree as ET
+import socket
+import time
 from urllib.parse import urljoin, urlsplit, urlunsplit
 from xml.sax.saxutils import escape
+
+from .net import ssdp_search
 
 NS = {
     "d": "urn:schemas-upnp-org:device-1-0",
@@ -22,13 +26,14 @@ def _http(url, data=None, headers=None, timeout=10):
 
 
 class MediaServer:
-    def __init__(self, description_url):
+    def __init__(self, description_url, timeout=10):
         self.description_url = description_url
+        self.timeout = timeout
         self.name = None
         self.control_url = None
 
     def connect(self):
-        root = ET.fromstring(_http(self.description_url))
+        root = ET.fromstring(_http(self.description_url, timeout=self.timeout))
         self.name = root.findtext(".//d:device/d:friendlyName", namespaces=NS)
         base = root.findtext("d:URLBase", namespaces=NS) or self.description_url
         for svc in root.iterfind(".//d:service", NS):
@@ -112,6 +117,70 @@ def parse_didl(xml_text):
             "protocol": res.get("protocolInfo") if res is not None else None,
         })
     return out
+
+
+_PATHS = ["/DeviceDescription.xml", "/dms/device.xml", "/description.xml", "/rootDesc.xml"]
+_PORTS = [32469, 80, 8200, 9000]          # Plex DLNA, generic, MiniDLNA, other
+
+
+def _port_open(host, port, timeout=1.0):
+    try:
+        with socket.create_connection((host, port), timeout):
+            return True
+    except OSError:
+        return False
+
+
+def resolve_server(text):
+    """Turn what a person types ('192.168.1.10', 'nas:8200', a full URL) into a connected MediaServer.
+    Raises ValueError with a readable message."""
+    t = (text or "").strip()
+    if not t:
+        raise ValueError("Enter a server address, for example 192.168.1.10")
+    if "://" not in t:
+        t = "http://" + t
+    u = urlsplit(t)
+    if not u.hostname:
+        raise ValueError("That does not look like an address")
+    if u.path not in ("", "/"):
+        urls = [t]
+    else:
+        ports = [u.port] if u.port else _PORTS
+        urls = ["http://%s:%d%s" % (u.hostname, p, path) for p in ports if _port_open(u.hostname, p)
+                for path in _PATHS]
+    deadline = time.time() + 12
+    for url in urls:
+        if time.time() > deadline:
+            break
+        try:
+            return MediaServer(url, timeout=3).connect()
+        except Exception:
+            continue
+    raise ValueError("No DLNA/UPnP media server answered at %s. Check the address, and that the server's "
+                     "DLNA option is switched on." % u.hostname)
+
+
+def discover_servers(timeout=3.0):
+    """Find DLNA/UPnP media servers: an SSDP search, plus Plex's DLNA port on this host (a Plex running as a
+    Home Assistant app does not answer the network search). Returns dicts with url, name, kind."""
+    found, seen = [], set()
+    for ip, (loc, srv) in ssdp_search("urn:schemas-upnp-org:device:MediaServer:1", timeout).items():
+        if not loc or loc in seen:
+            continue
+        kind = "Sonos" if "sonos" in srv.lower() else ("TV tuner" if "hdhomerun" in srv.lower() else "Media server")
+        try:
+            name = MediaServer(loc, timeout=3).connect().name or loc
+        except Exception:
+            continue
+        seen.add(loc)
+        found.append({"url": loc, "name": name, "kind": kind})
+    for url in ("http://127.0.0.1:32469/DeviceDescription.xml",):
+        if url not in seen and _port_open("127.0.0.1", 32469, 0.5):
+            try:
+                found.append({"url": url, "name": MediaServer(url, timeout=3).connect().name or "Plex", "kind": "Plex on this host"})
+            except Exception:
+                pass
+    return sorted(found, key=lambda f: (f["kind"] == "Sonos", f["name"].lower()))
 
 
 async def aconnect(url):
