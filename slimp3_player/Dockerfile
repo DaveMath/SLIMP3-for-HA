@@ -8,7 +8,7 @@ LABEL \
   io.hass.type="app" \
   io.hass.arch="${BUILD_ARCH}"
 
-RUN apk add --no-cache python3 py3-aiohttp py3-numpy py3-pip ffmpeg
+RUN apk add --no-cache python3 py3-aiohttp py3-numpy py3-pip py3-yaml ffmpeg
 
 # Optional HomePod support (reads what a HomePod is playing). Prebuilt packages only, so no compiler is needed. The
 # compiled 'miniaudio' package (pyatv uses it only to stream audio TO speakers) has no prebuilt package for this
@@ -31,6 +31,7 @@ RUN (ffmpeg -hide_banner -version; ffmpeg -hide_banner -encoders) > /tmp/ffmpeg-
     rm -f /tmp/ffmpeg-info.txt
 
 COPY app /app
+COPY config.yaml /app/config.yaml
 COPY run.sh /
 RUN chmod a+x /run.sh
 

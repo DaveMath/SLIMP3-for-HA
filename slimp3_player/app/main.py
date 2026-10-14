@@ -17,6 +17,7 @@ from slimp3.cast import CastMonitor
 from slimp3.net import local_ipv4s
 from slimp3.nowplaying import DEFAULT_SLEEP_KEYWORDS, SonosNowPlaying
 from slimp3.protocol import display_packet
+from slimp3.selfheal import heal
 from slimp3.server import Server
 from slimp3.sonos import SonosMonitor
 from slimp3.upnp import MediaServer, discover_servers, resolve_server, short_name
@@ -578,6 +579,7 @@ class App:
         return web.FileResponse(os.path.join(WEB, "index.html"))
 
     async def run(self):
+        await asyncio.get_running_loop().run_in_executor(None, heal, self.opts, log)   # add options new in this version
         await self.server.start(port=UDP_PORT)
         app = web.Application(middlewares=[guard, no_cache])
         app.add_routes([

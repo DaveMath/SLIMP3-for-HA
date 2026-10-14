@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.2
+- After an update, new options are added to the saved configuration with their defaults at startup, so the Configuration tab
+  shows them without a manual refresh. Existing values are never changed.
+
 ## 0.13.1
 - Saving the Configuration tab no longer fails with "Missing option 'paused_screen_seconds'" on installs updated from an earlier version. The option is now optional and defaults to 300.
 
