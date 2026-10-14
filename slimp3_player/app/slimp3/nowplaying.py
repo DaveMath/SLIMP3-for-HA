@@ -87,16 +87,17 @@ class NowPlaying:
 
 
 class Marquee:
-    """Always-scrolling line: the text repeats with a separator, never stops."""
+    """Bottom-line text: centered and still if it fits, continuous scroll only if it is too long."""
 
     def __init__(self, text, width=LINE_LEN, speed=6.0, gap="   *   "):
         t = vfd_safe(text)
         self.width, self.speed = width, speed
+        self.static = t.center(width) if len(t) <= width else None
         self.loop = (t + gap) if t else ""
 
     def line(self, t):
-        if not self.loop:
-            return ""
+        if self.static is not None:
+            return self.static
         n = len(self.loop)
         off = int(t * self.speed) % n
         return (self.loop * (self.width // n + 3))[off:off + self.width]

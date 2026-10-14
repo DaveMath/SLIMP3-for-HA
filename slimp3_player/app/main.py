@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 """SLIMP3 Player app: UDP endpoint for SLIMP3 devices + HTTP API/UI (HA ingress)."""
 import asyncio
+import ipaddress
 import json
 import os
 import time
@@ -16,6 +17,21 @@ OPTS_PATH = os.environ.get("SLIMP3_OPTIONS", "/data/options.json")
 PORT = int(os.environ.get("SLIMP3_PORT", "8099"))
 WEB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
 T0 = time.time()
+# Home Assistant's internal network (ingress gateway is 172.30.32.2); set SLIMP3_ALLOW_ALL=1 for local dev.
+ALLOWED = [ipaddress.ip_network(n) for n in ("127.0.0.0/8", "172.30.32.0/23")]
+ALLOW_ALL = os.environ.get("SLIMP3_ALLOW_ALL") == "1"
+
+
+@web.middleware
+async def guard(request, handler):
+    if not ALLOW_ALL:
+        try:
+            ok = any(ipaddress.ip_address(request.remote) in n for n in ALLOWED)
+        except ValueError:
+            ok = False
+        if not ok:
+            raise web.HTTPForbidden(text="open this app from the Home Assistant sidebar")
+    return await handler(request)
 
 
 def log(msg):
@@ -149,7 +165,7 @@ class App:
 
     async def run(self):
         await self.server.start()
-        app = web.Application()
+        app = web.Application(middlewares=[guard])
         app.add_routes([
             web.get("/", self.index), web.get("/api/state", self.state),
             web.get("/api/browse", self.browse), web.post("/api/play", self.play),
