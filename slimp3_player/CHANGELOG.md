@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.9.0
+- **No more bare "Now playing".** When there is no artist (live TV, untagged files) the display, the page and the Home Assistant
+  media player show where it comes from, for example `HDHomeRun - Live TV` over the channel name. The page's player card shows the
+  server next to "Now playing". Paused and buffering states are shown on the display.
+- **Sonos players are not music servers.** They are left out of Find servers and the library, and adding one is refused with an
+  explanation, removing the blank DLNA folders to click through.
+- **Sonos screen without track info** (TV audio, line-in) shows the room over the source instead of the room twice; a track shows the
+  room and source (`Office: Spotify`).
+- Stopped and Queue finished screens now say something useful; Buffering names the server.
+- **Fix: Stop or Next could hang** after playing a live source such as a TV channel (ffmpeg's backed-up output stopped asyncio from
+  reaping it). Stopping is now immediate; found and tested with a real tuner.
+- The sidebar page's library list shows `Live TV` or `Track` instead of a blank subtitle.
+
 ## 0.8.0
 - **Dashboard tile.** The app installs a Home Assistant integration (SLIMP3) that makes each SLIMP3 a media player:
   play, pause, stop, next, previous, volume, and a media browser (music servers, folders, tracks) with play buttons.

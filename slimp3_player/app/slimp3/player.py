@@ -88,6 +88,7 @@ class Player:
                     proto = it.get("protocol") or ""
                     await self.play(it["url"], it.get("title") or "", it.get("artist") or "",
                                     it.get("album") or "", live="Broadcast" in (it.get("class") or ""),
+                                    source_name=it.get("source") or "", kind=it.get("kind") or "",
                                     mp3=("audio/mpeg" in proto) if proto else None,
                                     length_s=_seconds(it.get("duration")))
                 except Exception as e:  # keep the queue moving on a bad track
@@ -95,7 +96,7 @@ class Player:
                     continue
                 await self.ended.wait()
             await self._halt()
-            self.show("Queue finished", "")
+            self.show("Queue finished", "Pick more music in Home Assistant")
         except asyncio.CancelledError:
             pass
 
@@ -128,7 +129,8 @@ class Player:
             self.sonos_task.cancel()
             self.sonos_task = None
 
-    async def play(self, source, title="", artist="", album="", duration=None, live=False, mp3=None, length_s=None):
+    async def play(self, source, title="", artist="", album="", duration=None, live=False, mp3=None, length_s=None,
+                   source_name="", kind=""):
         """MP3 sources are fed to the SLIMP3 untouched (it decodes MP3 itself). Anything else, and
         live streams, are converted to 128 kbps MP3 by ffmpeg. mp3=None means: judge by the file name."""
         self.cancel_sonos()
@@ -158,8 +160,9 @@ class Player:
                     "-ar", "44100", "-ac", "2", "-write_xing", "0", "-id3v2_version", "0",
                     "-f", "mp3", "pipe:1"]
             self.proc = await asyncio.create_subprocess_exec(
-                *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-        self.meta = {"title": title or source.rsplit("/", 1)[-1], "artist": artist, "album": album}
+                *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
+        self.meta = {"title": title or source.rsplit("/", 1)[-1], "artist": artist, "album": album,
+                     "source": source_name, "kind": kind}
         if self.use_spectrum and not live:   # optional extra: needs numpy and a second decode of the source
             from .spectrum import Spectrum
             self.spectrum = Spectrum(source, FFMPEG, duration)
@@ -174,7 +177,7 @@ class Player:
         self.set_volume(self.volume)
         self._send(i2c_packet(mas3507d.init_sequence()))
         await asyncio.sleep(0.05)         # let the player digest the i2c writes
-        self.show("Buffering...", self.meta["title"])
+        self.show(("Buffering from %s" % source_name) if source_name else "Buffering...", self.meta["title"])
         s.start()
 
     def _started(self):
@@ -199,6 +202,30 @@ class Player:
             return await self.proc.stdout.readexactly(n)
         except asyncio.IncompleteReadError as e:
             return e.partial
+
+    async def _reap(self, proc):
+        """Kill ffmpeg and collect it without ever hanging. If something is still reading its output, a plain wait
+        finishes at once. If nothing is (a fast source such as live TV leaves unread output buffered), asyncio's
+        wait() can wait forever for the pipe to reach end-of-file, so drain the pipe and wait again."""
+        if proc.returncode is None:
+            try:
+                proc.kill()
+            except ProcessLookupError:
+                pass
+        try:
+            await asyncio.wait_for(proc.wait(), 1.0)
+            return
+        except asyncio.TimeoutError:
+            pass
+
+        async def drain():
+            while await proc.stdout.read(65536):
+                pass
+        try:
+            await asyncio.wait_for(drain(), 3)
+            await asyncio.wait_for(proc.wait(), 3)
+        except Exception as e:
+            self.log("ffmpeg did not exit cleanly (%s); continuing" % type(e).__name__)
 
     async def _close_reader(self):
         r, self.reader = self.reader, None
@@ -225,13 +252,12 @@ class Player:
             self.stream.stop()
             self.stream = None
         await self._close_reader()
-        if self.proc and self.proc.returncode is None:
-            self.proc.kill()
-            await self.proc.wait()
-        self.proc = None
+        proc, self.proc = self.proc, None
+        if proc is not None:
+            await self._reap(proc)
 
     async def stop(self):
         await self._cancel_runner()
         await self._halt()
         self.queue, self.index = [], -1
-        self.show("Stopped", "")
+        self.show("Stopped", self.meta.get("title") or "Pick music in Home Assistant")

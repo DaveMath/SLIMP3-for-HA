@@ -3,6 +3,7 @@
 import asyncio
 import urllib.request
 import xml.etree.ElementTree as ET
+import re
 import socket
 import time
 from urllib.parse import urljoin, urlsplit, urlunsplit
@@ -31,12 +32,15 @@ class MediaServer:
         self.timeout = timeout
         self.name = None
         self.udn = None
+        self.manufacturer = self.model = ""
         self.control_url = None
 
     def connect(self):
         root = ET.fromstring(_http(self.description_url, timeout=self.timeout))
         self.name = root.findtext(".//d:device/d:friendlyName", namespaces=NS)
         self.udn = root.findtext(".//d:device/d:UDN", namespaces=NS)
+        self.manufacturer = root.findtext(".//d:device/d:manufacturer", namespaces=NS) or ""
+        self.model = root.findtext(".//d:device/d:modelName", namespaces=NS) or ""
         base = root.findtext("d:URLBase", namespaces=NS) or self.description_url
         for svc in root.iterfind(".//d:service", NS):
             if (svc.findtext("d:serviceType", namespaces=NS) or "").startswith(
@@ -45,6 +49,12 @@ class MediaServer:
         if not self.control_url:
             raise RuntimeError("no ContentDirectory service on %s" % self.description_url)
         return self
+
+    @property
+    def is_sonos(self):
+        """Sonos players publish a DLNA server of their own (mostly blank folders). They are not music sources here:
+        Sonos is shown on the SLIMP3 display automatically."""
+        return "sonos" in (self.manufacturer + " " + self.model).lower() or ":1400/" in self.description_url
 
     def fix_url(self, url):
         """Servers behind Docker/NAT advertise internal addresses (e.g. 172.30.x.x).
@@ -95,6 +105,31 @@ class MediaServer:
         return items[0] if items else None
 
 
+_KNOWN = (("hdhomerun", "HDHomeRun"), ("plex", "Plex"), ("minidlna", "MiniDLNA"), ("jellyfin", "Jellyfin"),
+          ("emby", "Emby"), ("synology", "Synology"), ("twonky", "Twonky"), ("serviio", "Serviio"),
+          ("universal media server", "Universal Media Server"), ("kodi", "Kodi"))
+
+
+def short_name(name):
+    """A short label for a server, for a 40-character display: 'HDHomeRun DMS 1069CDD7' -> 'HDHomeRun',
+    'Plex Media Server: HAPi5' -> 'Plex'. Other names lose device ids and filler words."""
+    n = (name or "").strip()
+    low = n.lower()
+    for key, label in _KNOWN:
+        if key in low:
+            return label
+    n = re.sub(r"\b[0-9A-Fa-f]{6,}\b", "", n)
+    n = re.sub(r"\b(DMS|Media Server|MediaServer|UPnP|DLNA)\b", "", n, flags=re.I)
+    n = re.sub(r"\s{2,}", " ", n).strip(" :-")
+    return (n or (name or "Server"))[:24]
+
+
+def item_kind(cls):
+    """What kind of thing an item is, when its metadata says nothing else: live TV, live radio, or ''."""
+    c = cls or ""
+    return "Live TV" if "videoBroadcast" in c else ("Live radio" if "audioBroadcast" in c else "")
+
+
 def parse_didl(xml_text):
     if not xml_text:
         return []
@@ -111,6 +146,7 @@ def parse_didl(xml_text):
             "child_count": el.get("childCount"),
             "title": el.findtext("dc:title", namespaces=NS),
             "class": el.findtext("upnp:class", namespaces=NS),
+            "kind": item_kind(el.findtext("upnp:class", namespaces=NS)),
             "artist": el.findtext("upnp:artist", namespaces=NS) or el.findtext("dc:creator", namespaces=NS),
             "album": el.findtext("upnp:album", namespaces=NS),
             "art": el.findtext("upnp:albumArtURI", namespaces=NS),
@@ -121,8 +157,8 @@ def parse_didl(xml_text):
     return out
 
 
-_PATHS = ["/DeviceDescription.xml", "/dms/device.xml", "/description.xml", "/rootDesc.xml"]
-_PORTS = [32469, 80, 8200, 9000]          # Plex DLNA, generic, MiniDLNA, other
+_PATHS = ["/DeviceDescription.xml", "/dms/device.xml", "/description.xml", "/rootDesc.xml", "/xml/device_description.xml"]
+_PORTS = [32469, 80, 8200, 9000, 1400]   # Plex DLNA, generic, MiniDLNA, other, Sonos (so it can be explained, not just refused)
 
 
 def _port_open(host, port, timeout=1.0):
@@ -179,6 +215,8 @@ def discover_servers(timeout=3.0):
         try:
             ms = MediaServer(loc, timeout=3).connect()
         except Exception:
+            continue
+        if ms.is_sonos:               # Sonos is handled separately; its DLNA folders are just noise here
             continue
         found.append({"url": loc, "name": ms.name or loc, "kind": kind, "udn": ms.udn or ""})
     local = "http://127.0.0.1:32469/DeviceDescription.xml"

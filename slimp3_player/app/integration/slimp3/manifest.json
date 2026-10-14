@@ -1,7 +1,7 @@
 {
   "domain": "slimp3",
   "name": "SLIMP3",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "documentation": "https://github.com/DaveMath/SLIMP3-for-HA",
   "issue_tracker": "https://github.com/DaveMath/SLIMP3-for-HA/issues",
   "codeowners": ["@DaveMath"],

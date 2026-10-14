@@ -16,7 +16,7 @@ from slimp3.net import local_ipv4s
 from slimp3.nowplaying import SonosNowPlaying
 from slimp3.server import Server
 from slimp3.sonos import SonosMonitor
-from slimp3.upnp import MediaServer, discover_servers, resolve_server
+from slimp3.upnp import MediaServer, discover_servers, resolve_server, short_name
 
 OPTS_PATH = os.environ.get("SLIMP3_OPTIONS", "/data/options.json")
 PORT = int(os.environ.get("SLIMP3_PORT", "8099"))
@@ -168,13 +168,20 @@ class App:
     def _add_source(self, url, origin, name=None):
         if not url:
             return None
+        if ":1400/" in url:           # a Sonos player: not a music source (Sonos is shown on the SLIMP3 automatically)
+            log("ignoring %s: Sonos players are not music servers" % url)
+            return None
         sid = hashlib.md5(url.encode()).hexdigest()[:8]
         found = next((s for s in self.sources if s["id"] == sid), None)
         if found:
             return found
-        src = {"id": sid, "url": url, "server": None, "name": name or url, "origin": origin, "udn": ""}
+        src = {"id": sid, "url": url, "server": None, "name": name or url, "origin": origin, "udn": "", "short": "", "hidden": False}
         self.sources.append(src)
         return src
+
+    def visible_sources(self):
+        """Music servers to offer: everything except Sonos players (which publish blank DLNA folders)."""
+        return [s for s in self.sources if not s["hidden"]]
 
     def _save_sources(self):
         try:
@@ -193,6 +200,7 @@ class App:
                 try:
                     s["server"] = await loop.run_in_executor(None, MediaServer(s["url"], 4).connect)
                     s["name"], s["udn"] = s["server"].name or s["name"], s["server"].udn or ""
+                    s["short"], s["hidden"] = short_name(s["name"]), s["server"].is_sonos
                 except Exception as e:
                     log("music server %s not reachable yet: %s" % (s["url"], e))
 
@@ -276,7 +284,7 @@ class App:
                 later.append(("Player: " + (c.get("name") or "(unnamed)"), sonos, 4.0))
                 if room and show and self.sonos.groups and room.lower() not in [r.lower() for r in self.sonos.rooms()]:
                     later.append(("Sonos room not found: " + room, "Rooms: " + ", ".join(self.sonos.rooms()), 6.0))
-            if not self.sources:
+            if not self.visible_sources():
                 later.append(("No music source set up yet", "Add a DLNA server in app config", 4.0))
             if not self.sonos.enabled and c is None:
                 later.append(("Tip: add a Sonos address in", "app config to see what it plays", 4.0))
@@ -312,7 +320,7 @@ class App:
         now = time.time()
         return web.json_response({
             "players": [p.status() for p in self.server.players.values()],
-            "sources": [{"id": s["id"], "name": s["name"]} for s in self.sources],
+            "sources": [{"id": s["id"], "name": s["name"]} for s in self.visible_sources()],
             "heard": [{"ip": ip, "ago": int(now - t)} for ip, t in self.server.heard.items()],
             "uptime": int(now - self.started), "udp_port": UDP_PORT,
             "sonos_enabled": self.sonos.enabled, "instance_id": self.instance_id,
@@ -320,7 +328,7 @@ class App:
 
     async def sources_list(self, req):
         return web.json_response([{"id": s["id"], "name": s["name"], "url": s["url"], "origin": s["origin"]}
-                                  for s in self.sources])
+                                  for s in self.visible_sources()])
 
     async def sources_add(self, req):
         body = await req.json()
@@ -328,11 +336,15 @@ class App:
             srv = await asyncio.get_event_loop().run_in_executor(None, resolve_server, body.get("url"))
         except ValueError as e:
             raise web.HTTPBadRequest(text=str(e))
+        if srv.is_sonos:
+            raise web.HTTPBadRequest(text="That is a Sonos player. Sonos is shown on the SLIMP3 automatically "
+                                          "(Settings, Sonos); it is not a music server.")
         same = next((s for s in self.sources if srv.udn and s["udn"] == srv.udn), None)
         if same:                                   # already listed (maybe under another address)
             return web.json_response({"id": same["id"], "name": same["name"], "url": same["url"], "origin": same["origin"]})
         src = self._add_source(srv.description_url, "added", srv.name)
         src["server"], src["name"], src["udn"] = srv, srv.name or src["name"], srv.udn or ""
+        src["short"] = short_name(src["name"])
         self._save_sources()
         return web.json_response({"id": src["id"], "name": src["name"], "url": src["url"], "origin": src["origin"]})
 
@@ -355,7 +367,7 @@ class App:
         return web.json_response(found)
 
     async def browse(self, req):
-        srv = await self.source(req.query.get("source") or (self.sources[0]["id"] if self.sources else ""))
+        srv = await self.source(req.query.get("source") or (self.visible_sources()[0]["id"] if self.visible_sources() else ""))
         oid, start = req.query.get("id", "0"), int(req.query.get("start", 0))
         loop = asyncio.get_event_loop()
         items, total = await loop.run_in_executor(None, srv.browse, oid, start, 200)
@@ -373,7 +385,10 @@ class App:
         p = self.player(body.get("mac"))
         if not p:
             raise web.HTTPServiceUnavailable(text="no SLIMP3 connected")
-        srv = await self.source(body.get("source") or (self.sources[0]["id"] if self.sources else ""))
+        sid = body.get("source") or (self.visible_sources()[0]["id"] if self.visible_sources() else "")
+        srv = await self.source(sid)
+        src = next(s for s in self.sources if s["id"] == str(sid))
+        label = src["short"] or short_name(src["name"])
         loop = asyncio.get_event_loop()
         start = 0
         if body.get("container"):
@@ -386,6 +401,8 @@ class App:
             items = [it] if it and it["url"] else []
         if not items:
             raise web.HTTPNotFound(text="nothing playable")
+        for it in items:               # say where it comes from, for screens that have no artist or album
+            it["source"] = label
         await p.play_queue(items, start)
         return web.json_response({"queued": len(items), "start": start})
 
@@ -485,7 +502,7 @@ class App:
             asyncio.ensure_future(self.sonos_display_loop())
         asyncio.ensure_future(self._warm_sources())
         log("web UI/API on port %d; %d music server(s); Sonos %s"
-            % (PORT, len(self.sources),
+            % (PORT, len(self.visible_sources()),
                ("discovery on" if self.sonos.discovery else "addresses only") if self.sonos.enabled else "off"))
         await asyncio.Event().wait()
 

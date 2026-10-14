@@ -78,7 +78,6 @@ class SlimPlayer(CoordinatorEntity, MediaPlayerEntity):
 
     _attr_has_entity_name = True
     _attr_name = None
-    _attr_media_content_type = MediaType.MUSIC
     _attr_supported_features = FEATURES
 
     def __init__(self, coordinator, api, mac: str) -> None:
@@ -125,7 +124,17 @@ class SlimPlayer(CoordinatorEntity, MediaPlayerEntity):
 
     @property
     def media_artist(self) -> str | None:
-        return self._meta("artist")
+        # a channel has no artist: show where it comes from instead of a blank line
+        return self._meta("artist") or self._meta("source")
+
+    @property
+    def app_name(self) -> str | None:
+        return self._meta("source")
+
+    @property
+    def media_content_type(self) -> MediaType | str | None:
+        p = self._p
+        return MediaType.CHANNEL if p and (p.get("meta") or {}).get("kind") else MediaType.MUSIC
 
     @property
     def media_album_name(self) -> str | None:

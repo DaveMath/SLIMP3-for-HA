@@ -117,6 +117,10 @@ configuration can only be removed in the configuration. You browse a server exac
 every library, folder, playlist or view the server exposes through its ContentDirectory is available,
 so several music folders or libraries all show up under that one server.
 
+**Sonos players are never offered as music servers.** Each Sonos publishes a DLNA server of its own, but its folders are
+mostly blank, so they are left out of Find servers and the library, and typing a Sonos address is refused with an explanation. Sonos
+is shown on the SLIMP3 display automatically instead (see below).
+
 Find servers is a convenience, not a guarantee: a network search of the test network found a TV tuner and two
 Sonos players but **not** the Plex server, even though Plex's DLNA service was running and reachable by address.
 The search therefore also tries Plex's DLNA port on the host the app runs on, and you can always add a server by

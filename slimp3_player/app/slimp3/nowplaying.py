@@ -20,6 +20,19 @@ def vfd_safe(text):
                    for c in t)
 
 
+def headline(meta):
+    """The top line for what is playing. Never a bare 'Now playing' when something more useful is known:
+    artist, else album, else where it comes from ('HDHomeRun - Live TV', 'Plex')."""
+    if meta.get("artist"):
+        return meta["artist"]
+    if meta.get("album"):
+        return meta["album"]
+    src, kind = meta.get("source"), meta.get("kind")
+    if src and kind:
+        return "%s - %s" % (src, kind)
+    return src or kind or "Now playing"
+
+
 class Ticker:
     """Cycles through texts: short ones are centered and held, long ones scroll."""
 
@@ -52,6 +65,12 @@ class Ticker:
         return self.segs[-1][1]
 
 
+def state_prefix(player):
+    """'Paused - ' / 'Buffering - ' while the player is not actually playing, so the screen never looks like it is."""
+    stream = getattr(player, "stream", None)
+    return {"paused": "Paused - ", "rebuffer": "Buffering - "}.get(getattr(stream, "state", ""), "")
+
+
 class NowPlaying:
     """Spectrum layout: line 1 alternates artist/title, line 2 is the analyzer.
     Text layout (spectrum off): line 1 artist, line 2 title, each scrolls if too long."""
@@ -59,11 +78,11 @@ class NowPlaying:
     def __init__(self, player, meta, spectrum, fps=8, sync_ms=0):
         self.player, self.spectrum = player, spectrum
         self.fps, self.sync = fps, sync_ms / 1000.0
-        artist, title = meta.get("artist"), meta.get("title")
+        title, first = meta.get("title"), headline(meta)
         if spectrum:
-            self.ticker = Ticker([t for t in (artist, title) if t] or ["Now playing"])
+            self.ticker = Ticker([t for t in (first, title) if t])
         else:
-            self.t1 = Ticker([artist or meta.get("album") or "Now playing"])
+            self.t1 = Ticker([first])
             self.t2 = Ticker([title or ""])
             self.fps = min(self.fps, 4)
 
@@ -77,7 +96,7 @@ class NowPlaying:
                 custom = None
                 if self.spectrum:
                     bands = self.spectrum.frame(self.player.position() - self.sync)
-                    line1 = self.ticker.line(now - t0)
+                    line1 = (state_prefix(self.player) + self.ticker.line(now - t0).strip())[:LINE_LEN]
                     line2 = "".join(" " if h <= 0 else chr(min(h, LEVELS) - 1) for h in bands)
                     if now - last_custom > 20:
                         custom, last_custom = CUSTOM, now
@@ -86,6 +105,9 @@ class NowPlaying:
                     continue
                 # text layout: only send when something changed (or every 10 s, in case the display lost it)
                 line1, line2 = self.t1.line(now - t0), self.t2.line(now - t0)
+                pre = state_prefix(self.player)
+                if pre:
+                    line1 = (pre + line1.strip())[:LINE_LEN]
                 if (line1, line2) != last or now - last_sent > 10:
                     self.player._send(display_packet(line1, line2))
                     last, last_sent = (line1, line2), now
@@ -112,6 +134,21 @@ class Marquee:
         return (self.loop * (self.width // n + 3))[off:off + self.width]
 
 
+def sonos_lines(st):
+    """(top, bottom) text for a Sonos group. A station, else a track, else just where it comes from, but never the
+    same words on both lines:
+      station + track   'CH 55 - SiriusXM Chill'  /  'Artist - Title'
+      track + source    'Office: Spotify'          /  'Artist - Title'
+      no track info     'Living Room'              /  'TV audio' (or 'Line-in', 'Playing')"""
+    room, src, station = st.get("room") or "", st.get("source") or "", st.get("station") or ""
+    track = " - ".join(x for x in (st.get("artist"), st.get("title")) if x) or st.get("album") or ""
+    if station:
+        return station, track or src or "Playing"
+    if track:
+        return ("%s: %s" % (room, src) if room and src else room or src or "Sonos"), track
+    return room or "Sonos", src or "Playing"
+
+
 class SonosNowPlaying:
     """Mirrors what a Sonos group is playing: station (e.g. 'CH 55 - SiriusXM Chill')
     on the top line, 'Artist - Title' on the bottom line. Text only: no audio is touched, and a frame is
@@ -128,12 +165,11 @@ class SonosNowPlaying:
                 st = self.get_state()
                 animated = False
                 if st:
-                    new = (st["station"], st["room"], st["artist"], st["title"], st["album"])
+                    new = (st["station"], st["room"], st["artist"], st["title"], st["album"], st.get("source"))
                     if new != key:
                         key, t0, last = new, time.time(), None
-                        head = st["station"] or st["room"] or "Sonos"
-                        body = " - ".join(x for x in (st["artist"], st["title"]) if x) or st["album"]
-                        top, bottom = Ticker([head]), Marquee(body or head)
+                        head, body = sonos_lines(st)
+                        top, bottom = Ticker([head]), Marquee(body)
                     if top:
                         now = time.time()
                         lines = (top.line(now - t0), bottom.line(now - t0))

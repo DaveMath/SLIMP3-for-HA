@@ -94,6 +94,20 @@ def parse_stream_content(s):
     return "", s.strip()
 
 
+_SOURCES = (("x-sonos-htastream:", "TV audio"), ("x-rincon-stream:", "Line-in"), ("x-sonos-vli:", "Line-in"),
+            ("x-sonos-spotify:", "Spotify"), ("x-sonosapi-radio:", "Radio"), ("x-sonosapi-hls", "Radio"),
+            ("x-sonosapi-stream:", "Radio"), ("x-rincon-mp3radio:", "Internet radio"), ("aac:", "Radio"),
+            ("x-sonos-http:", "Streaming"), ("x-sonosprog-http:", "Streaming"), ("x-file-cifs:", "Music library"))
+
+
+def describe_source(uri):
+    """A short label for what a Sonos group is playing from, judged by its address scheme ('' if unknown)."""
+    for prefix, label in _SOURCES:
+        if (uri or "").startswith(prefix):
+            return label
+    return ""
+
+
 def read_topology(seed_ips):
     """Blocking. Ask the first reachable seed for the household topology: a list of group dicts
     (coordinator address, rooms) with no playback state yet."""
@@ -116,7 +130,7 @@ def read_topology(seed_ips):
             continue
         group = {"coordinator": ip.group(1), "room": coord.get("ZoneName", ""),
                  "rooms": [m.get("ZoneName", "") for m in members], "state": "",
-                 "station": "", "artist": "", "title": "", "album": "", "uri": ""}
+                 "station": "", "artist": "", "title": "", "album": "", "uri": "", "source": ""}
         groups.append(group)
     return groups
 
@@ -136,7 +150,8 @@ def _read_group(cip):
     is_radio = "audioBroadcast" in station.get("cls", "")
     return {"state": state, "station": station.get("title", "") if is_radio else "",
             "artist": artist, "title": title if title != station.get("title") else "",
-            "album": track.get("album", ""), "uri": _field(media, "CurrentURI")}
+            "album": track.get("album", ""), "uri": _field(media, "CurrentURI"),
+            "source": describe_source(_field(media, "CurrentURI"))}
 
 
 def discover(timeout=3.0):

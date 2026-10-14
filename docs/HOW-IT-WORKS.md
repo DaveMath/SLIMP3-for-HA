@@ -98,6 +98,32 @@ Text rules: a title that fits in 40 characters is centered and still; a longer o
 with a separator between repeats. In the spectrum screen, the top line alternates artist and title,
 holding each for about three seconds (scrolling if long).
 
+## Every display screen
+
+The SLIMP3 shows two lines of 40 characters. Text that fits is centered and still; longer text scrolls. The goal is that
+no screen is blank or just says "Now playing": when something is not known, the line says where it comes from.
+
+| When | Line 1 | Line 2 |
+| --- | --- | --- |
+| Player connects or restarts | `Connected to Home Assistant`, then `IP <address>` | `SLIMP3-for-HA`, then `MAC <address>` |
+| Setup prompts (see Boot screens) | the prompt, for example `Optional: name this player` | what to do, for example `HA sidebar > SLIMP3 > Settings` |
+| Idle | `SLIMP3 server ready` | the player's name and address |
+| Starting a track | `Buffering from <server>` (or `Buffering...`) | the title |
+| Playing, artist known | the artist | the title |
+| Playing, no artist | the album, else `<server> - Live TV` / `<server> - Live radio`, else the server name | the title (a channel name, a file name) |
+| Playing, analyzer on | alternates the line above and the title | a 40-band spectrum |
+| Paused or rebuffering | `Paused - ` or `Buffering - ` in front of line 1 | unchanged |
+| Stopped | `Stopped` | the last title, else `Pick music in Home Assistant` |
+| Queue finished | `Queue finished` | `Pick more music in Home Assistant` |
+| Sonos, radio station | the station, for example `CH 55 - SiriusXM Chill` | `Artist - Title` (or the source if no track) |
+| Sonos, a track | the room and source, for example `Office: Spotify` | `Artist - Title` |
+| Sonos, no track info | the room | where it comes from: `TV audio`, `Line-in`, or `Playing` |
+
+`<server>` is a short name for the music server (`HDHomeRun` for `HDHomeRun DMS 1069CDD7`, `Plex` for
+`Plex Media Server: HAPi5`). The sidebar page and the Home Assistant media player show the same information: the
+page's player card shows the server next to "Now playing" and "Live TV from HDHomeRun" when there is no artist; the media player uses the
+server name as the artist and the app name, and the type `channel` for live sources.
+
 ## Boot screens
 
 A new player is created when its first hello arrives. A player that is already known and sends a

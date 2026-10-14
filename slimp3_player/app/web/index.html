@@ -27,6 +27,8 @@ h2{margin:0 0 2px;font-size:16px}.sub{color:var(--dim);font-size:13px}
 .btn.primary{background:var(--acc);color:var(--acc-fg);border-color:var(--acc);font-weight:600}.btn.primary:hover{filter:brightness(1.07)}
 .btn.round{width:44px;height:44px;padding:0;justify-content:center;border-radius:50%}
 .btn.small{padding:5px 10px;font-size:13px}.btn.danger{color:var(--bad)}
+.np-label{display:flex;align-items:center;gap:8px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin-bottom:4px}
+.np-label .src{text-transform:none;letter-spacing:0;font-size:12.5px;background:var(--soft);color:var(--acc);border-radius:999px;padding:1px 9px;font-weight:600}
 .np-title{font-size:19px;font-weight:650;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .np-sub{color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .controls{display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap}
@@ -72,6 +74,7 @@ input[type=text],select{font:inherit;color:var(--fg);background:var(--card);bord
   </section>
 
   <section class="card pad hidden" id="playerCard">
+    <div class="np-label" id="npLabel">Now playing</div>
     <div class="np-title" id="npTitle">Nothing playing</div>
     <div class="np-sub" id="npSub">Choose something from the library below.</div>
     <div class="controls">
@@ -163,7 +166,9 @@ function renderPlayer(){const p=cur(),none=!p;
   sel.value=p.mac;
   const m=p.meta||{};
   $('#npTitle').textContent=m.title||'Nothing playing';
-  $('#npSub').innerHTML=m.title?esc([m.artist,m.album].filter(Boolean).join(' - '))+'<span class="state">'+esc({play:'Playing',paused:'Paused',buffering:'Buffering',rebuffer:'Buffering'}[p.state]||p.state)+' '+fmt(p.position)+'</span>':'Choose something from the library below.';
+  $('#npLabel').innerHTML=m.title?'Now playing'+(m.source?' <span class="src">'+esc(m.source)+'</span>':''):'Ready';
+  const detail=[m.artist,m.album].filter(Boolean).join(' - ')||(m.kind&&m.source?m.kind+' from '+m.source:(m.source?'From '+m.source:''));
+  $('#npSub').innerHTML=m.title?esc(detail)+'<span class="state">'+esc({play:'Playing',paused:'Paused',buffering:'Buffering',rebuffer:'Buffering'}[p.state]||p.state)+' '+fmt(p.position)+'</span>':'Choose something from the library below.';
   $('#bPrev').innerHTML=ic('prev');$('#bNext').innerHTML=ic('next');$('#bStop').innerHTML=ic('stop');$('#volIc').innerHTML=ic('vol',18);
   $('#bPlay').innerHTML=ic(p.state==='paused'?'play':(m.title?'pause':'play'));
   if(document.activeElement!==$('#vol')){$('#vol').value=p.volume;$('#volv').textContent=p.volume;}
@@ -204,7 +209,7 @@ function renderLibrary(){const root=!S.stack.length;
   const hasTracks=!root&&S.items.some(i=>!i.container);$('#bAll').classList.toggle('hidden',!hasTracks);$('#bAll').innerHTML=ic('play',16)+' Play all';
   if(root){$('#list').innerHTML=S.sources.length?S.sources.map(s=>'<div class="item" tabindex="0" role="button" onclick="openServer(\''+s.id+'\')" onkeydown="if(event.key===\'Enter\')openServer(\''+s.id+'\')"><span class="ico">'+ic('server')+'</span><div class="t"><div>'+esc(s.name)+'</div><div class="s">Browse this server</div></div><span class="chev">'+ic('chev')+'</span></div>').join(''):
     '<div class="empty">'+ic('server',36)+'<h3>No music servers yet</h3><div>Find your Plex or other DLNA server and add it.</div><div style="margin-top:14px"><button class="btn primary" onclick="openSettings()">Find servers</button></div></div>';return;}
-  $('#list').innerHTML=S.items.length?S.items.map((it,n)=>'<div class="item" tabindex="0" role="button" onclick="openItem('+n+')" onkeydown="if(event.key===\'Enter\')openItem('+n+')"><span class="ico">'+ic(it.container?'folder':'note')+'</span><div class="t"><div>'+esc(it.title)+'</div><div class="s">'+esc([it.artist,it.duration&&it.duration.replace(/^0:/,'').replace(/\.\d+$/,'')].filter(Boolean).join('  -  '))+'</div></div>'+(it.container?'<span class="chev">'+ic('chev')+'</span>':'<span class="chev">'+ic('play',18)+'</span>')+'</div>').join(''):'<div class="empty">This folder is empty.</div>';}
+  $('#list').innerHTML=S.items.length?S.items.map((it,n)=>'<div class="item" tabindex="0" role="button" onclick="openItem('+n+')" onkeydown="if(event.key===\'Enter\')openItem('+n+')"><span class="ico">'+ic(it.container?'folder':'note')+'</span><div class="t"><div>'+esc(it.title)+'</div><div class="s">'+esc([it.artist||it.kind||(it.container?'':'Track'),it.duration&&it.duration.replace(/^0:/,'').replace(/\.\d+$/,'')].filter(Boolean).join('  -  '))+'</div></div>'+(it.container?'<span class="chev">'+ic('chev')+'</span>':'<span class="chev">'+ic('play',18)+'</span>')+'</div>').join(''):'<div class="empty">This folder is empty.</div>';}
 function renderTile(){const i=S.integration;if(!i)return;const steps=[];
   $('#tileInfo').innerHTML=i.installed?'The SLIMP3 integration is installed in Home Assistant (version '+esc(i.version)+'). It makes each SLIMP3 a media player you can put on a dashboard.':'The app could not copy the integration into Home Assistant automatically, so the dashboard tile is not available yet. See the documentation for the manual steps.';
   if(!i.installed){$('#tileSteps').innerHTML='';return;}

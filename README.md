@@ -20,7 +20,9 @@ Written by @GGDM on Krystalize.AI local harness.
 - **A dashboard tile.** The app installs a small Home Assistant integration that turns each SLIMP3 into a media
   player. Put it on a dashboard as a Tile; tapping it opens Home Assistant's own media browser, with your music
   servers, folders, Back navigation and play buttons. See [docs/DASHBOARD.md](docs/DASHBOARD.md).
-- **Artist and title on the display** while playing: artist on the top line, title on the bottom.
+- **Artist and title on the display** while playing: artist on the top line, title on the bottom. It never shows a bare "Now playing":
+  when there is no artist (live TV, untagged files) it says where it comes from, for example `HDHomeRun - Live TV`. Paused and
+  buffering states show too.
 - **Spectrum analyzer (optional, off by default).** Switch it on and the bottom line becomes a live 40-band
   analyzer, synced to what you hear. It costs a second decode of the audio and extra memory, so it is opt-in.
 - **Sonos now-playing.** When the SLIMP3 is idle, it mirrors a Sonos room: the station (for example
