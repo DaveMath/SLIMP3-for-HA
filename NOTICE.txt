@@ -1,3 +1,4 @@
 SLIMP3 player for Home Assistant
 Derived in part from Lyrion Music Server (slimserver), GPL-2.0.
+HomePod support installs and uses pyatv (MIT license, https://pyatv.dev) at build time; it is not part of this repository.
 License: GPL-2.0-only. See https://github.com/LMS-Community/slimserver

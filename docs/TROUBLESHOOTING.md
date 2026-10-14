@@ -70,6 +70,12 @@ itself off. Live sources (TV tuners) never show the analyzer.
 The display ROM is not Unicode. Titles are folded to ASCII and characters that cannot be folded show as
 `?`. If other characters appear, open an issue with the exact title and your player's firmware version.
 
+## A HomePod does not show
+
+See [HOMEPOD.md](HOMEPOD.md). The page lists the HomePods it found. Check the log for `HomePods found:` and for
+`HomePod support is not available`. The HomePod must be playing (not paused), the SLIMP3 must be idle, and the dropdown must allow
+HomePods.
+
 ## Sonos does not show
 
 - Sonos players are found automatically with a multicast search. If the log says `sonos discovery found: nothing`,

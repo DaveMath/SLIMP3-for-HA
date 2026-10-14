@@ -31,6 +31,8 @@ Written by @GGDM on Krystalize.AI local harness.
   mirroring it does no audio work at all: only text, and a display update only when the text changes.
 - **Setup help on the player itself.** At connect or restart the SLIMP3's display shows its IP and MAC
   address and step-by-step prompts (name this player, add a music source, Sonos room not found).
+- **HomePods.** HomePods are found automatically and shown like Sonos while the SLIMP3 is idle (read-only, no pairing). See
+  [docs/HOMEPOD.md](docs/HOMEPOD.md).
 - **Multi-room.** Each SLIMP3 is matched by MAC address to its own settings, including which Sonos
   room it mirrors. Sonos speakers are **found automatically** and listed in a dropdown on the sidebar page, where
   you also name each player; no addresses to type.
@@ -62,6 +64,7 @@ ffmpeg's own output).
 | --- | --- |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Every option, single-room and multi-room examples, finding MAC addresses, Sonos rooms and DLNA URLs |
 | [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) | Architecture, the SLIMP3 protocol, streaming engine, display, spectrum sync, Sonos, security |
+| [docs/HOMEPOD.md](docs/HOMEPOD.md) | HomePod display: setup, what shows, how it works, cost, limits |
 | [docs/DASHBOARD.md](docs/DASHBOARD.md) | The dashboard tile and media browser: setup, what it supports, troubleshooting |
 | [docs/API.md](docs/API.md) | The HTTP API behind the sidebar page |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common problems and fixes |
@@ -73,7 +76,8 @@ play, Back); one SLIMP3 (firmware 2.2); Plex Media Server 1.43.4 DLNA server run
 Assistant app; a Sonos S2 system (Playbar and Connect, software 86.10) with SiriusXM. Development and
 all hardware tests ran the same application code on a Mac, driving that real hardware.
 
-**Not yet validated:** the dashboard integration inside a running Home Assistant (it was tested by importing it into
+**Not yet validated:** HomePod support inside the container (it was tested on a Mac against a real HomePod and HomePod mini, not in
+the Alpine container with Python 3.14); the dashboard integration inside a running Home Assistant (it was tested by importing it into
 the real Home Assistant 2026.2.3 package and driving its media player against the real app and a real Plex server;
 the parts Home Assistant itself provides, such as the Tile card and the Browse media dialog, were not run); the page inside Home Assistant's sidebar (ingress); Sonos discovery from inside the Home Assistant container (it works from a Mac on the same
 network; the container uses the host network, so it is expected to work); building and running the container inside Home Assistant (if you enable the optional

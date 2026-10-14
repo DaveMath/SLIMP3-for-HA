@@ -68,12 +68,22 @@ Playback continues through the container automatically. Returns `{"queued": N, "
 ## `POST /api/player`
 
 ```json
-{"mac": "...", "name": "Den", "sonos_room": "Living Room", "show_sonos": true}
+{"mac": "...", "name": "Den", "sonos_room": "Living Room", "apple_room": "", "show_sonos": true}
 ```
 
 Saves a player's name and Sonos room (any subset of the fields) and applies it immediately. Saved values
 override the options file. An empty `sonos_room` means any playing room; `show_sonos: false` turns the Sonos
 display off for that player.
+
+## `GET /api/apple`
+
+```json
+{"enabled": true, "available": true,
+ "devices": [{"name": "Kitchen", "model": "HomePod", "connected": false, "state": ""}]}
+```
+
+The HomePods found on the network. `connected` and `state` (`PLAYING`, `PAUSED`, `STOPPED`) are filled only while the app is
+connected to that HomePod, which happens only while a SLIMP3 is idle and wants to show it.
 
 ## `GET /api/sonos`
 

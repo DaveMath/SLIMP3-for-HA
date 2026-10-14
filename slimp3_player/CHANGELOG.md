@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.0
+- **HomePods.** HomePods and HomePod minis are found automatically and shown on a SLIMP3's display while it is idle, like Sonos:
+  the HomePod's name over `Artist - Title`. Read-only and no pairing. Choose Sonos rooms and HomePods from one dropdown on the sidebar
+  page (or `apple_room` in `players`). New option `apple_discovery`.
+- The app connects to a HomePod only while a SLIMP3 is idle and wants it, and only to the ones it wants.
+- The container installs pyatv from prebuilt packages (no compiler); if that fails the app still runs without HomePod support.
+- Settings text says "Sonos support is switched off" when it is.
+
 ## 0.9.0
 - **No more bare "Now playing".** When there is no artist (live TV, untagged files) the display, the page and the Home Assistant
   media player show where it comes from, for example `HDHomeRun - Live TV` over the channel name. The page's player card shows the

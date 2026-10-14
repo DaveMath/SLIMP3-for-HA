@@ -118,6 +118,7 @@ no screen is blank or just says "Now playing": when something is not known, the 
 | Sonos, radio station | the station, for example `CH 55 - SiriusXM Chill` | `Artist - Title` (or the source if no track) |
 | Sonos, a track | the room and source, for example `Office: Spotify` | `Artist - Title` |
 | Sonos, no track info | the room | where it comes from: `TV audio`, `Line-in`, or `Playing` |
+| HomePod playing | `Kitchen: HomePod` or `Kitchen: HomePod mini` | `Artist - Title` (a podcast: `Show - Episode`) |
 
 `<server>` is a short name for the music server (`HDHomeRun` for `HDHomeRun DMS 1069CDD7`, `Plex` for
 `Plex Media Server: HAPi5`). The sidebar page and the Home Assistant media player show the same information: the
@@ -153,6 +154,8 @@ memory use on your host.
 - **Memory.** The Python process measured between 22 and 48 MB (macOS figures vary). Not measured on Alpine.
 - **Disk.** The container image is about 218 MiB installed (143 packages in the Supervisor build log). Most of it is
   ffmpeg and its libraries; numpy and OpenBLAS (used only by the optional analyzer) are 5 of the 143 packages.
+- **HomePods** (when mirrored): about 0.10% of a core and 5 MB more with two connected and idle, six TCP connections; about 0.03%
+  and no connections otherwise. Details in [HOMEPOD.md](HOMEPOD.md).
 - **Known remaining costs.** Sonos is polled, not event-driven. The engine still polls a full player buffer about
   4 times a second. The Python runtime and the image size are what they are.
 

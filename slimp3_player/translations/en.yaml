@@ -28,6 +28,12 @@ configuration:
       One entry per SLIMP3, matched by MAC address (shown in the app log and in the sidebar page).
       name is a label, sonos_room is the Sonos room this player mirrors, show_sonos turns the Sonos
       display off for this player, and volume, spectrum and sync_ms override the defaults below.
+  apple_discovery:
+    name: Find HomePods automatically
+    description: >-
+      Show what a HomePod is playing on a SLIMP3 display, like Sonos. HomePods are found on the network and need no
+      pairing; the app only reads what they are playing. Needs the HomePod access setting to allow your network
+      (the default).
   boot_screens:
     name: Show setup screens on the SLIMP3
     description: >-

@@ -104,7 +104,7 @@ input[type=text],select{font:inherit;color:var(--fg);background:var(--card);bord
         <div class="field"><label for="pname">Name</label>
           <input type="text" id="pname" maxlength="30" placeholder="For example: Living Room" oninput="nameTyped()" autocomplete="off">
           <div class="saved" id="nameSaved">Changes are saved automatically.</div></div>
-        <div class="field" style="margin-top:10px"><label for="proom">Show this Sonos room on the display when idle</label>
+        <div class="field" style="margin-top:10px"><label for="proom">Show on the display when this player is idle</label>
           <select id="proom" onchange="roomChanged()"></select>
           <div class="saved" id="roomSaved"></div></div>
         <div class="sub" id="devInfo" style="margin-top:8px"></div>
@@ -120,7 +120,7 @@ input[type=text],select{font:inherit;color:var(--fg);background:var(--card);bord
         <div class="field" style="margin-top:12px"><label for="addr">Or add one by address (for example 192.168.1.10)</label>
           <div class="row"><input type="text" id="addr" placeholder="Server address" autocomplete="off" onkeydown="if(event.key==='Enter')addByAddr()"><button class="btn primary" id="bAdd" onclick="addByAddr()">Add</button></div></div>
       </div>
-      <div><h3>Sonos</h3><div class="sub" id="sonosInfo">Searching…</div></div>
+      <div><h3>Sonos and HomePods</h3><div class="sub" id="sonosInfo">Searching…</div></div>
       <div><h3>Dashboard tile</h3>
         <div class="sub" id="tileInfo"></div>
         <ol class="steps" id="tileSteps"></ol></div>
@@ -152,6 +152,7 @@ function renderChips(){const p=cur();let h='';
   if(!S.enabled)h+='<span class="chip">Sonos off</span>';
   else if(!S.sonos)h+='<span class="chip"><span class="spin"></span>Finding Sonos</span>';
   else h+=S.sonos.rooms.length?'<span class="chip ok"><span class="dot"></span>Sonos: '+S.sonos.rooms.length+' room'+(S.sonos.rooms.length>1?'s':'')+'</span>':'<span class="chip warn">No Sonos found</span>';
+  if(S.apple&&S.apple.devices&&S.apple.devices.length)h+='<span class="chip ok"><span class="dot"></span>HomePod: '+S.apple.devices.length+'</span>';
   $('#chips').innerHTML=h;}
 function renderPlayer(){const p=cur(),none=!p;
   $('#discover').classList.toggle('hidden',!none);$('#playerCard').classList.toggle('hidden',none);$('#secPlayer').classList.toggle('hidden',none);
@@ -173,7 +174,7 @@ function renderPlayer(){const p=cur(),none=!p;
   $('#bPlay').innerHTML=ic(p.state==='paused'?'play':(m.title?'pause':'play'));
   if(document.activeElement!==$('#vol')){$('#vol').value=p.volume;$('#volv').textContent=p.volume;}
   if(document.activeElement!==$('#pname'))$('#pname').value=p.name||'';
-  if(document.activeElement!==$('#proom'))$('#proom').value=p.show_sonos===false?'__off':(p.sonos_room||'');
+  if(document.activeElement!==$('#proom'))$('#proom').value=p.show_sonos===false?'__off':(p.apple_room?('a:'+p.apple_room):(p.sonos_room?('s:'+p.sonos_room):''));
   $('#devInfo').textContent='Address '+p.ip+'  -  MAC '+p.mac+'  -  firmware '+p.fw;}
 function ctl(a){const p=cur();if(!p)return toast('No SLIMP3 connected yet',1);post('api/control',{mac:p.mac,action:a}).then(poll).catch(e=>toast(e.message,1));}
 function vol(v){$('#volv').textContent=v;clearTimeout(volT);volT=setTimeout(()=>{const p=cur();if(p)post('api/control',{mac:p.mac,action:'volume',value:+v});},150);}
@@ -183,11 +184,23 @@ function setSaved(id,t,ok){const e=$(id);e.textContent=t;e.className='saved'+(ok
 function nameTyped(){setSaved('#nameSaved','Saving…');clearTimeout(nameT);nameT=setTimeout(saveName,700);}
 async function saveName(){const p=cur();if(!p)return;try{await post('api/player',{mac:p.mac,name:$('#pname').value.trim()});setSaved('#nameSaved','Saved',1);poll();}catch(e){setSaved('#nameSaved',e.message);}}
 async function roomChanged(){const p=cur(),v=$('#proom').value;if(!p)return;setSaved('#roomSaved','Saving…');
-  try{await post('api/player',{mac:p.mac,sonos_room:v==='__off'?'':v,show_sonos:v!=='__off'});setSaved('#roomSaved','Saved',1);poll();}catch(e){setSaved('#roomSaved',e.message);}}
-async function loadSonos(){try{S.sonos=await api('api/sonos');const sel=$('#proom'),keep=sel.value;
-  sel.innerHTML='<option value="">Any room that is playing</option>'+S.sonos.rooms.map(r=>'<option value="'+esc(r)+'">'+esc(r)+'</option>').join('')+'<option value="__off">Do not show Sonos</option>';sel.value=keep;
-  $('#sonosInfo').textContent=S.sonos.rooms.length?'Found '+S.sonos.rooms.length+' room'+(S.sonos.rooms.length>1?'s':'')+': '+S.sonos.rooms.join(', ')+'. Sonos speakers are found automatically.':'No Sonos speakers found. If you have Sonos, they may be on another network segment; add one address under "sonos_ips" in the app configuration.';
-  renderChips();}catch(e){}}
+  const b={mac:p.mac,show_sonos:v!=='__off',sonos_room:'',apple_room:''};
+  if(v.startsWith('s:'))b.sonos_room=v.slice(2);else if(v.startsWith('a:'))b.apple_room=v.slice(2);
+  try{await post('api/player',b);setSaved('#roomSaved','Saved',1);poll();}catch(e){setSaved('#roomSaved',e.message);}}
+async function loadSonos(){
+  try{S.sonos=await api('api/sonos');}catch(e){}
+  try{S.apple=await api('api/apple');}catch(e){S.apple={devices:[]};}
+  const rooms=(S.sonos&&S.sonos.rooms)||[],pods=(S.apple&&S.apple.devices)||[],sel=$('#proom'),keep=sel.value;
+  sel.innerHTML='<option value="">Anything that is playing</option>'
+    +(rooms.length?'<optgroup label="Sonos">'+rooms.map(r=>'<option value="s:'+esc(r)+'">'+esc(r)+'</option>').join('')+'</optgroup>':'')
+    +(pods.length?'<optgroup label="HomePod">'+pods.map(d=>'<option value="a:'+esc(d.name)+'">'+esc(d.name)+' ('+esc(d.model)+')</option>').join('')+'</optgroup>':'')
+    +'<option value="__off">Do not show Sonos or HomePod</option>';
+  sel.value=keep;
+  const parts=[];
+  parts.push(rooms.length?'Sonos: '+rooms.join(', '):(S.enabled===false?'Sonos support is switched off.':'No Sonos speakers found. If you have Sonos, they may be on another network segment; add one address under "sonos_ips" in the app configuration.'));
+  parts.push(pods.length?'HomePods: '+pods.map(d=>d.name+' ('+d.model+')').join(', ')+'. The app only reads what they are playing; no pairing is needed.':(S.apple&&S.apple.enabled===false?'HomePod support is switched off.':'No HomePods found.'));
+  $('#sonosInfo').innerHTML=parts.map(x=>'<div style="margin-bottom:4px">'+esc(x)+'</div>').join('');
+  renderChips();}
 
 /* ---------- music servers (file picker) ---------- */
 async function loadSources(){try{S.sources=await api('api/sources');renderSources();if(!S.stack.length)renderLibrary();}catch(e){}}

@@ -43,6 +43,7 @@ class Player:
         self.welcome_task = None
         self.welcome_t = 0.0
         self.sonos_room = ""
+        self.apple_room = ""
         self.show_sonos = True
         self.meta = {}
         self.queue = []
@@ -66,7 +67,7 @@ class Player:
 
     def status(self):
         state = self.stream.state if self.stream else "stop"
-        return {"mac": self.mac, "name": self.name, "fw": self.fw, "configured": self.configured, "sonos_room": self.sonos_room,
+        return {"mac": self.mac, "name": self.name, "fw": self.fw, "configured": self.configured, "sonos_room": self.sonos_room, "apple_room": self.apple_room,
                 "show_sonos": self.show_sonos, "ip": self.addr[0], "state": state,
                 "position": round(self.position(), 1), "volume": self.volume,
                 "meta": self.meta if self.stream else {}, "index": self.index,

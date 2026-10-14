@@ -11,6 +11,7 @@ Changes apply after restarting the app.
 | `player_ips` | `[]` | Optional SLIMP3 addresses. Only needed if a player does not find the server by broadcast. The app sends these addresses a hello until the player registers. |
 | `sonos_ips` | `[]` | Optional. Sonos players are found automatically; add an address only if discovery cannot see them (for example another network segment). One address is enough, the app reads the whole household from it. |
 | `sonos_discovery` | `true` | Search the network for Sonos players. `false` uses only `sonos_ips`. |
+| `apple_discovery` | `true` | Find HomePods and show what they play, like Sonos (read-only, no pairing). See [HOMEPOD.md](HOMEPOD.md). |
 | `players` | `[]` | Per-SLIMP3 settings, matched by MAC address. See below. |
 | `sonos_display` | `true` | Default for `show_sonos`: show Sonos on the display while the SLIMP3 is idle. |
 | `default_volume` | `40` | Volume (0-100) a player starts at. |
@@ -27,6 +28,7 @@ Changes apply after restarting the app.
 | `mac` | yes | The SLIMP3's MAC address, for example `00:04:20:xx:xx:xx` (case does not matter). |
 | `name` | no | A label shown in the sidebar page and the log. |
 | `sonos_room` | no | The Sonos room this player mirrors. Empty: mirror any playing Sonos group. |
+| `apple_room` | no | The HomePod this player mirrors (its name in the Home app). Set one of `sonos_room` and `apple_room`, or neither to mirror anything that is playing. |
 | `show_sonos` | no | `false` turns the Sonos display off for this player. |
 | `volume` | no | Starting volume for this player. |
 | `spectrum` | no | Overrides the global `spectrum` for this player (set `true` to turn the analyzer on for just this player). |
@@ -139,8 +141,9 @@ read an HDHomeRun channel's AC-3 5.1 audio and converted it to 128 kbps stereo M
 ## How a SLIMP3 chooses what to show
 
 1. If the SLIMP3 is playing music from this app, it shows that (artist and title, or the spectrum if enabled).
-2. Otherwise, if `show_sonos` is true and its `sonos_room` (or any room, if empty) is in a Sonos group
-   that is playing, it shows that group's station and track.
+2. Otherwise, if `show_sonos` is true and a Sonos group it follows (its `sonos_room`, or any) or a HomePod it follows (its
+   `apple_room`, or any) is playing, it shows that: the Sonos station and track, or the HomePod's name and what it plays.
+   With neither chosen it shows whichever is playing, Sonos first.
 3. Otherwise it shows `SLIMP3 server ready`.
 
 Sonos groups matter: if the Kitchen is grouped with the Living Room, a SLIMP3 mapped to `Kitchen`

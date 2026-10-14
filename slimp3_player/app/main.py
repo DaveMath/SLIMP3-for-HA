@@ -12,6 +12,7 @@ import time
 
 from aiohttp import web
 
+from slimp3.apple import AppleMonitor
 from slimp3.net import local_ipv4s
 from slimp3.nowplaying import SonosNowPlaying
 from slimp3.server import Server
@@ -135,6 +136,7 @@ class App:
         self.server.on_new_player = self._new_player
         self.server.on_reboot = self.start_welcome
         self.sonos = SonosMonitor(opts.get("sonos_ips") or [], log, bool(opts.get("sonos_discovery", True)))
+        self.apple = AppleMonitor(log, bool(opts.get("apple_discovery", True)))
         self.cfg = {str(c.get("mac", "")).lower(): c for c in (opts.get("players") or [])}
         self.data_dir = os.environ.get("SLIMP3_DATA", "/data")
         self.saved = self._load_saved()      # settings made on the sidebar page; they override the options
@@ -208,6 +210,7 @@ class App:
         c = self.cfg_for(p.mac)
         p.name = c.get("name") or ""
         p.sonos_room = c.get("sonos_room") or ""
+        p.apple_room = c.get("apple_room") or ""
         p.show_sonos = c.get("show_sonos", self.opts.get("sonos_display", True))
         if "volume" in c:
             p.volume = int(c["volume"])
@@ -280,7 +283,8 @@ class App:
                 elif not show:
                     sonos = "Sonos display: off"
                 else:
-                    sonos = "Sonos room: " + room if room else "Sonos: any playing room"
+                    sonos = ("HomePod: " + c["apple_room"]) if c.get("apple_room") else (
+                        "Sonos room: " + room if room else "Sonos / HomePod: any playing")
                 later.append(("Player: " + (c.get("name") or "(unnamed)"), sonos, 4.0))
                 if room and show and self.sonos.groups and room.lower() not in [r.lower() for r in self.sonos.rooms()]:
                     later.append(("Sonos room not found: " + room, "Rooms: " + ", ".join(self.sonos.rooms()), 6.0))
@@ -323,7 +327,7 @@ class App:
             "sources": [{"id": s["id"], "name": s["name"]} for s in self.visible_sources()],
             "heard": [{"ip": ip, "ago": int(now - t)} for ip, t in self.server.heard.items()],
             "uptime": int(now - self.started), "udp_port": UDP_PORT,
-            "sonos_enabled": self.sonos.enabled, "instance_id": self.instance_id,
+            "sonos_enabled": self.sonos.enabled, "apple_enabled": self.apple.enabled, "instance_id": self.instance_id,
             "integration": self.integration})
 
     async def sources_list(self, req):
@@ -432,10 +436,34 @@ class App:
             raise web.HTTPBadRequest(text="unknown action")
         return web.json_response(p.status())
 
+    def _wants_sonos(self, p):
+        """A player with a HomePod chosen mirrors only that; otherwise it can show Sonos (a chosen room, or any)."""
+        return bool(p.sonos_room) or not p.apple_room
+
+    def _wants_apple(self, p):
+        return bool(p.apple_room) or not p.sonos_room
+
+    def _idle_wanting(self):
+        return [p for p in self.server.players.values()
+                if p.show_sonos and p.stream is None and p._runner is None]
+
     def _sonos_needed(self):
         """Rooms (lowercase; '' = any) that an idle SLIMP3 wants to show. Empty: do not poll Sonos at all."""
-        return {(p.sonos_room or "").lower() for p in self.server.players.values()
-                if p.show_sonos and p.stream is None and p._runner is None}
+        return {(p.sonos_room or "").lower() for p in self._idle_wanting() if self._wants_sonos(p)}
+
+    def _apple_needed(self):
+        """HomePod names (lowercase; '' = any) an idle SLIMP3 wants. Empty: stay disconnected from HomePods."""
+        return {(p.apple_room or "").lower() for p in self._idle_wanting() if self._wants_apple(p)}
+
+    def _mirror_state(self, p):
+        """What this player should mirror right now: a playing Sonos group, else a playing HomePod, else None."""
+        if self.sonos.enabled and self._wants_sonos(p):
+            st = self.sonos.active(p.sonos_room)
+            if st:
+                return st
+        if self.apple.enabled and self._wants_apple(p):
+            return self.apple.active(p.apple_room)
+        return None
 
     async def sonos_state(self, req):
         if not self.sonos.rooms():
@@ -457,6 +485,8 @@ class App:
             p.name = s["name"] = str(body["name"])[:30]
         if "sonos_room" in body:
             p.sonos_room = s["sonos_room"] = str(body["sonos_room"])
+        if "apple_room" in body:
+            p.apple_room = s["apple_room"] = str(body["apple_room"])
         if "show_sonos" in body:
             p.show_sonos = s["show_sonos"] = bool(body["show_sonos"])
         p.configured = True
@@ -465,21 +495,30 @@ class App:
         return web.json_response(p.status())
 
     async def sonos_display_loop(self):
-        """Per SLIMP3: mirror its Sonos room's group while the SLIMP3 itself is idle."""
+        """Per SLIMP3: while it is idle, mirror what a Sonos group or a HomePod is playing."""
         while True:
             await asyncio.sleep(1)
             for p in self.server.players.values():
                 idle = p.stream is None and p._runner is None and p.welcome_task is None
-                room = p.sonos_room
-                want = idle and p.show_sonos and self.sonos.active(room) is not None
+                want = idle and p.show_sonos and self._mirror_state(p) is not None
                 if want and not p.sonos_task:
-                    p.sonos_task = asyncio.ensure_future(
-                        SonosNowPlaying(p, lambda r=room: self.sonos.active(r)).run())
-                    log("showing Sonos (%s) on %s" % (room or "any room", p.name or p.mac))
+                    p.sonos_task = asyncio.ensure_future(SonosNowPlaying(p, lambda p=p: self._mirror_state(p)).run())
+                    log("showing %s on %s" % (p.apple_room or p.sonos_room or "what is playing (any room)", p.name or p.mac))
                 elif p.sonos_task and not want:
                     p.cancel_sonos()
                     if idle:
                         self.idle_screen(p)
+
+    async def apple_state(self, req):
+        if self.apple.enabled and not self.apple.names():
+            try:
+                await self.apple.discover()
+            except Exception as e:
+                log("HomePod discovery failed: %s" % e)
+        return web.json_response({"enabled": self.apple.enabled, "available": bool(self.apple.enabled and self.apple.names() is not None),
+                                  "devices": [{"name": n, "model": self.apple.model(n), "connected": n in self.apple._conns,
+                                               "state": (self.apple.devices.get(n) or {}).get("state", "")}
+                                              for n in self.apple.names()]})
 
     async def index(self, req):
         return web.FileResponse(os.path.join(WEB, "index.html"))
@@ -490,7 +529,7 @@ class App:
         app.add_routes([
             web.get("/", self.index), web.get("/api/state", self.state),
             web.get("/api/browse", self.browse), web.post("/api/play", self.play),
-            web.post("/api/control", self.control), web.get("/api/sonos", self.sonos_state),
+            web.post("/api/control", self.control), web.get("/api/sonos", self.sonos_state), web.get("/api/apple", self.apple_state),
             web.post("/api/player", self.set_player), web.get("/api/sources", self.sources_list),
             web.post("/api/sources", self.sources_add), web.delete("/api/sources", self.sources_remove),
             web.get("/api/discover/servers", self.sources_discover)])
@@ -499,6 +538,9 @@ class App:
         await web.TCPSite(runner, "0.0.0.0", PORT).start()
         if self.sonos.enabled:      # configured addresses and/or automatic discovery
             asyncio.ensure_future(self.sonos.run(needed=self._sonos_needed))
+        if self.apple.enabled:
+            asyncio.ensure_future(self.apple.run(needed=self._apple_needed))
+        if self.sonos.enabled or self.apple.enabled:
             asyncio.ensure_future(self.sonos_display_loop())
         asyncio.ensure_future(self._warm_sources())
         log("web UI/API on port %d; %d music server(s); Sonos %s"
