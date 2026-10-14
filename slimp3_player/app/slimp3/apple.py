@@ -32,6 +32,20 @@ def load_pyatv(log=print):
         return None
 
 
+def pick(devices, state, name=None):
+    """The device called `name` in `state`, or with no name the first one, with its room joined to every other device
+    in that state that carries the same track (a simulcast: 'Kitchen + Bedroom')."""
+    hits = [(n, d) for n, d in devices.items() if d["state"] == state and (d["title"] or d["artist"] or state == "PLAYING")]
+    if name:
+        hits = [(n, d) for n, d in hits if n.lower() == name.lower()]
+        return hits[0][1] if hits else None
+    if not hits:
+        return None
+    first = hits[0][1]
+    same = [n for n, d in hits if (d["artist"], d["title"]) == (first["artist"], first["title"])]
+    return dict(first, room=" + ".join(same)) if len(same) > 1 else first
+
+
 class AppleMonitor:
     REDISCOVER = 600
     POLL_PLAYING = 10.0     # seconds between direct checks of a HomePod that last said it was playing (catches a missed stop)
@@ -210,12 +224,13 @@ class AppleMonitor:
         """Ask every connected HomePod for its state right now (used to confirm a stop before the display goes black)."""
         await asyncio.gather(*[self._poll(n, 2) for n in list(self._conns)])
 
+    def paused(self, name=None):
+        """A paused device with a track loaded, for the 'Paused <room>' screen."""
+        return pick(self.devices, "PAUSED", name)
+
     def active(self, name=None):
         """The playing HomePod called `name` (case-insensitive), or any playing HomePod if name is empty."""
-        for n, d in self.devices.items():
-            if d["state"] == "PLAYING" and (not name or n.lower() == name.lower()):
-                return d
-        return None
+        return pick(self.devices, "PLAYING", name)
 
     async def close(self):
         for n in list(self._conns):

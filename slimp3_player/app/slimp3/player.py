@@ -38,6 +38,7 @@ class Player:
         self._runner = None
         self.sonos_task = None
         self.mirror_idle_since = 0.0
+        self.paused_since = 0.0
         self.confirming = self.confirm_done = False
         self.blank_t = 0.0
         self.name = ""

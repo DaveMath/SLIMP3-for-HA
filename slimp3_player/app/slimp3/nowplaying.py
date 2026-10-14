@@ -203,6 +203,8 @@ def sonos_lines(st):
       no track info     'Living Room'              /  'TV audio' (or 'Line-in', 'Playing')"""
     room, src, station = st.get("room") or "", st.get("source") or "", st.get("station") or ""
     track = " - ".join(x for x in (st.get("artist"), st.get("title")) if x) or st.get("album") or ""
+    if st.get("state") == "PAUSED":                 # a paused speaker: say so, and keep the track on the second line
+        return "Paused %s" % (room or src or "speaker"), track or station or src
     if station:
         return station, track or src or "Playing"
     if track:
@@ -227,13 +229,14 @@ class SonosNowPlaying:
                 st = self.get_state()
                 animated = False
                 if st:
-                    delay = sleeper.step([st.get("station"), st.get("title"), st.get("artist"), st.get("album")], time.time())
+                    paused = st.get("state") == "PAUSED"      # sleep sounds only count while they play
+                    delay = sleeper.step([] if paused else [st.get("station"), st.get("title"), st.get("artist"), st.get("album")], time.time())
                     if delay is not None:
                         await asyncio.sleep(delay)
                         continue
                     if sleeper.woke:
                         last, sleeper.woke = None, False
-                    new = (st["station"], st["room"], st["artist"], st["title"], st["album"], st.get("source"))
+                    new = (st["station"], st["room"], st["artist"], st["title"], st["album"], st.get("source"), st.get("state"))
                     if new != key:
                         key, t0, last = new, time.time(), None
                         head, body = sonos_lines(st)

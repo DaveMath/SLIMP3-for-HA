@@ -3,6 +3,7 @@
 they are playing. It speaks just enough of the Cast protocol (a TLS connection to port 8009 carrying length-prefixed
 protobuf messages) to read the receiver and media status, and it never sends a playback command. No Google account or
 login is involved. Connections are made only while some SLIMP3 is idle and wants to show a Cast device."""
+from .apple import pick
 import asyncio
 import json
 import ssl
@@ -334,11 +335,12 @@ class CastMonitor:
                 await asyncio.sleep(10)
             await asyncio.sleep(interval)
 
+    def paused(self, name=None):
+        """A paused device with a track loaded, for the 'Paused <room>' screen."""
+        return pick(self.devices, "PAUSED", name)
+
     def active(self, name=None):
-        for n, d in self.devices.items():
-            if d["state"] == "PLAYING" and (not name or n.lower() == name.lower()):
-                return d
-        return None
+        return pick(self.devices, "PLAYING", name)
 
     async def close(self):
         for n in list(self._tasks):

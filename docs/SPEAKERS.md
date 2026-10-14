@@ -10,7 +10,7 @@ To choose which speaker a SLIMP3 shows, set `sonos_room`, `apple_room` or `cast_
 
 ## What shows
 
-A speaker appears only while it is **playing** and the SLIMP3 is not playing its own music. When it stops or pauses, the last screen stays for about 4 seconds (the app reads the speakers once more at 2 seconds, in case the stop report was wrong) and then the display goes black (brightness 0%, the same dark display sleep mode uses) until something plays again. Starting music on the SLIMP3 takes over the display.
+A speaker appears only while it is **playing** and the SLIMP3 is not playing its own music. A **paused** speaker shows `Paused <room>` on line 1 and the track on line 2 for `paused_screen_seconds` (default 300, then the display goes black; `0` goes black right away). When it stops, the last screen stays for about 4 seconds (the app reads the speakers once more at 2 seconds, in case the stop report was wrong) and then the display goes black (brightness 0%, the same dark display sleep mode uses) until something plays again. Starting music on the SLIMP3 takes over the display.
 
 | Source | Line 1 | Line 2 |
 | --- | --- | --- |
@@ -19,6 +19,8 @@ A speaker appears only while it is **playing** and the SLIMP3 is not playing its
 | Sonos, no track info | the room | `TV audio`, `Line-in` or `Playing` |
 | HomePod | the name and variant, for example `Kitchen: HomePod mini` | `Artist - Title` (a podcast: `Show - Episode`) |
 | Google Cast | the device name and app, for example `Bedroom: Spotify` | `Artist - Title` |
+| Several speakers, same track | `Kitchen + Bedroom: Spotify` | `Artist - Title` |
+| Any paused speaker | `Paused Kitchen` | `Artist - Title` |
 
 Text that fits is centered and still; longer text scrolls. Because the display shows exactly what a speaker reports, anyone looking at the SLIMP3 sees the titles of what is playing in that room. With [sleep mode](SLEEP-MODE.md) on, sleep sounds on a speaker blank the display after the countdown.
 

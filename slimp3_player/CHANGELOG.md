@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.0
+- A paused Sonos, HomePod or Cast speaker now shows `Paused <room>` over the track instead of going black. It stays for
+  `paused_screen_seconds` (new option, default 300), then the display goes black. A stopped speaker still blanks after about 4 seconds.
+- HomePods or Cast speakers playing the same track together (a simulcast) show as one screen with the rooms joined, for example `Kitchen + Bedroom`. A Sonos group already did.
+
 ## 0.12.4
 - A HomePod that reports `Loading` is no longer treated as playing. A HomePod mini sitting in that state with no track (seen with the Podcasts
   app) kept its name on the display after the music was turned off elsewhere. Info shows it as `loading`.

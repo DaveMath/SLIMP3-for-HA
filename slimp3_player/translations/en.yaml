@@ -51,6 +51,11 @@ configuration:
     description: >-
       Only add an address here if automatic discovery cannot see a device (for example when it is on another network
       segment).
+  paused_screen_seconds:
+    name: Paused speaker display (seconds)
+    description: >-
+      When a Sonos, HomePod or Cast speaker shown on the display is paused, show "Paused" and the room name (with the
+      track below) for this many seconds, then turn the display black. 0 turns it black right away.
   sleep_mode:
     name: Sleep mode (optional)
     description: >-

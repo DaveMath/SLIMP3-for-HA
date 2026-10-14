@@ -14,6 +14,7 @@ All settings live on the app's **Configuration** tab in Home Assistant (stored i
 | `cast_discovery` | `true` | Find Google Home, Nest and other Cast devices and show what they play. `false` switches Cast off completely, including `cast_ips`. |
 | `cast_ips` | `[]` | Cast device addresses. Only needed if discovery cannot see them. |
 | `sonos_display` | `true` | Default for `show_sonos`: show Sonos, HomePod and Cast speakers on the display while the SLIMP3 is idle. |
+| `paused_screen_seconds` | `300` | How long a paused Sonos, HomePod or Cast speaker stays on the display as `Paused <room>` over the track, before the display goes black (0-3600). `0`: black right away. |
 | `sleep_mode` | `false` | Turn the display off for sleep sounds, for every player. See [SLEEP-MODE.md](SLEEP-MODE.md). |
 | `sleep_keywords` | see [SLEEP-MODE.md](SLEEP-MODE.md) | Words that mark sleep sounds. |
 | `spectrum` | `true` | Waveform display (spectrum analyzer) on the bottom line while music plays from a media server. `false`: artist on the top line, title on the bottom. |

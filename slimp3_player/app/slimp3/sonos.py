@@ -138,7 +138,7 @@ def read_topology(seed_ips):
 def _read_group(cip):
     inst = "<InstanceID>0</InstanceID>"
     state = _field(_soap(cip, AVT, "GetTransportInfo", inst), "CurrentTransportState")
-    if state != "PLAYING":
+    if state not in ("PLAYING", "PAUSED_PLAYBACK"):
         return {"state": state}
     media = _soap(cip, AVT, "GetMediaInfo", inst)
     station = parse_didl(_field(media, "CurrentURIMetaData"))
@@ -254,6 +254,14 @@ class SonosMonitor:
 
     def rooms(self):
         return sorted(r for g in (self._topo or self.groups) for r in g["rooms"])
+
+    def paused(self, room=None):
+        """A paused group that contains `room` (or any), as a dict with state PAUSED, for the 'Paused <room>' screen."""
+        for g in self.groups:
+            if g["state"] == "PAUSED_PLAYBACK" and (g["title"] or g["artist"] or g["station"]) and (
+                    not room or room.lower() in [r.lower() for r in g["rooms"]]):
+                return dict(g, state="PAUSED")
+        return None
 
     def active(self, room=None):
         """The playing group that contains `room` (case-insensitive), or any playing group if room is empty."""

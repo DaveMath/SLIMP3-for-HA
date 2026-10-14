@@ -487,18 +487,30 @@ class App:
         """Google Cast device names (lowercase; '' = any) an idle SLIMP3 wants. Empty: stay disconnected."""
         return {(p.cast_room or "").lower() for p in self._idle_wanting() if self._wants(p, "cast")}
 
+    def _find(self, p, method):
+        """The first speaker (Sonos, then HomePod, then Cast) this player follows that answers `method` ('active' or 'paused')."""
+        for mon, kind, room in ((self.sonos, "sonos", p.sonos_room), (self.apple, "apple", p.apple_room), (self.cast, "cast", p.cast_room)):
+            if mon.enabled and self._wants(p, kind):
+                st = getattr(mon, method)(room)
+                if st:
+                    return st
+        return None
+
     def _mirror_state(self, p):
-        """What this player should mirror right now: a playing Sonos group, else a HomePod, else a Cast device, else None."""
-        if self.sonos.enabled and self._wants(p, "sonos"):
-            st = self.sonos.active(p.sonos_room)
-            if st:
-                return st
-        if self.apple.enabled and self._wants(p, "apple"):
-            st = self.apple.active(p.apple_room)
-            if st:
-                return st
-        if self.cast.enabled and self._wants(p, "cast"):
-            return self.cast.active(p.cast_room)
+        """What this player should mirror right now: a playing speaker, else a paused one (shown as 'Paused <room>' for
+        paused_screen_seconds), else None."""
+        st = self._find(p, "active")
+        if st:
+            p.paused_since = 0.0
+            return st
+        st = self._find(p, "paused")
+        if st:
+            now = time.time()
+            p.paused_since = p.paused_since or now
+            if now - p.paused_since < int(self.opts.get("paused_screen_seconds", 300)):
+                return dict(st, state="PAUSED")
+            return None
+        p.paused_since = 0.0
         return None
 
     async def sonos_state(self, req):
