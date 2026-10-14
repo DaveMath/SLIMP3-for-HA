@@ -16,8 +16,8 @@ MAX_SECONDS = 900          # cap analysis memory (~40 MB)
 
 
 class Spectrum:
-    def __init__(self, source, ffmpeg="ffmpeg", duration=None):
-        self.source, self.ffmpeg, self.duration = source, ffmpeg, duration
+    def __init__(self, source, ffmpeg="ffmpeg", duration=None, start_s=0.0):
+        self.source, self.ffmpeg, self.duration, self.start_s = source, ffmpeg, duration, start_s
         self.pcm = bytearray()
         self.done = False
         self.task = None
@@ -46,7 +46,7 @@ class Spectrum:
         self.task = asyncio.ensure_future(self._decode())
 
     async def _decode(self):
-        cmd = [self.ffmpeg, "-nostdin", "-v", "error", "-i", self.source]
+        cmd = [self.ffmpeg, "-nostdin", "-v", "error"] + (["-ss", str(self.start_s)] if self.start_s else []) + ["-i", self.source]
         if self.duration:
             cmd += ["-t", str(self.duration)]
         cmd += ["-vn", "-ac", "1", "-ar", str(RATE), "-f", "s16le", "pipe:1"]

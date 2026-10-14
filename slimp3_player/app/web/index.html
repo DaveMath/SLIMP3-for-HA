@@ -32,8 +32,18 @@ h2{margin:0 0 2px;font-size:16px}.sub{color:var(--dim);font-size:13px}
 .np-title{font-size:19px;font-weight:650;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .np-sub{color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .controls{display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap}
-.vol{flex:1;min-width:150px;display:flex;align-items:center;gap:10px;color:var(--dim)}.vol input{flex:1;accent-color:var(--acc)}
+
 .state{display:inline-block;font-size:12px;border-radius:6px;padding:1px 7px;background:var(--soft);color:var(--dim);margin-left:6px;vertical-align:2px}
+.timeline{display:flex;align-items:center;gap:10px;margin:14px 0 4px}
+.timeline input{flex:1;min-width:0;accent-color:var(--acc);height:28px;margin:0}.timeline input:disabled{opacity:.45}
+.tm{font-variant-numeric:tabular-nums;color:var(--dim);font-size:13px;min-width:3.2em}.tm:last-child{text-align:right}
+.vstep{margin-left:auto;display:flex;align-items:center;gap:6px;color:var(--dim)}
+.vstep .btn.small{width:32px;height:32px;padding:0;justify-content:center;font-size:18px;line-height:1}
+.vstep #volv{width:2.2em;text-align:center;color:var(--fg);font-variant-numeric:tabular-nums}
+.btn.back{padding:9px 16px;font-size:15px}
+.crumbs a{color:var(--acc);text-decoration:none}.crumbs a:hover{text-decoration:underline}.crumbs b{font-weight:700}
+.check{display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600}.check input{width:18px;height:18px;accent-color:var(--acc)}
+.ver{font-size:12px;font-weight:400;color:var(--dim);margin-left:6px}
 .lib-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
 .crumbs{flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.crumbs span{color:var(--dim);font-weight:400}
 .item{display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--line);cursor:pointer}
@@ -61,7 +71,7 @@ input[type=text],select{font:inherit;color:var(--fg);background:var(--card);bord
 #toast.show{opacity:1}#toast.bad{background:#b42318}
 </style></head><body>
 <header class="top"><div class="top-in">
-  <div class="brand"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>SLIMP3</div>
+  <div class="brand"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>SLIMP3<span class="ver" id="ver"></span></div>
   <div class="chips" id="chips"></div>
 </div></header>
 <main>
@@ -77,19 +87,24 @@ input[type=text],select{font:inherit;color:var(--fg);background:var(--card);bord
     <div class="np-label" id="npLabel">Now playing</div>
     <div class="np-title" id="npTitle">Nothing playing</div>
     <div class="np-sub" id="npSub">Choose something from the library below.</div>
+    <div class="timeline" id="timeline">
+      <span class="tm" id="tPos">0:00</span>
+      <input type="range" id="seek" min="0" max="1" step="1" value="0" disabled aria-label="Playback position" oninput="seekMove(this.value)" onchange="seekDone(this.value)">
+      <span class="tm" id="tDur">0:00</span>
+    </div>
     <div class="controls">
       <button class="btn round" id="bPrev" aria-label="Previous track" onclick="ctl('prev')"></button>
       <button class="btn round primary" id="bPlay" aria-label="Play or pause" onclick="ctl('toggle')"></button>
       <button class="btn round" id="bNext" aria-label="Next track" onclick="ctl('next')"></button>
       <button class="btn round" id="bStop" aria-label="Stop" onclick="ctl('stop')"></button>
-      <div class="vol"><span id="volIc"></span><input type="range" id="vol" min="0" max="100" aria-label="Volume" oninput="vol(this.value)"><span id="volv" style="width:2.2em;text-align:right"></span></div>
+      <div class="vstep" role="group" aria-label="Volume"><span id="volIc" aria-hidden="true"></span><button class="btn small" id="volDn" onclick="volStep(-5)" aria-label="Volume down">&minus;</button><span id="volv" aria-live="polite">0</span><button class="btn small" id="volUp" onclick="volStep(5)" aria-label="Volume up">+</button></div>
     </div>
     <div class="row" style="margin-top:12px" id="playerPick"><span class="sub">Player</span><select id="player" style="width:auto" onchange="S.sel=this.value;renderPlayer()"></select></div>
   </section>
 
   <section class="card" id="library">
     <div class="lib-head">
-      <button class="btn small" id="bBack" onclick="back()" aria-label="Back"></button>
+      <button class="btn primary back hidden" id="bBack" onclick="back()" aria-label="Go back one level"></button>
       <div class="crumbs" id="crumbs"></div>
       <button class="btn small primary hidden" id="bAll" onclick="playAll()"></button>
     </div>
@@ -98,6 +113,7 @@ input[type=text],select{font:inherit;color:var(--fg);background:var(--card);bord
 
   <details class="card" id="settings">
     <summary>Settings</summary>
+    <div class="sec" style="padding-bottom:0"><button class="btn" onclick="closeSettings()">&larr; Back to the library</button></div>
     <div class="sec">
       <div id="secPlayer" class="hidden">
         <h3>This player</h3>
@@ -107,6 +123,9 @@ input[type=text],select{font:inherit;color:var(--fg);background:var(--card);bord
         <div class="field" style="margin-top:10px"><label for="proom">Show on the display when this player is idle</label>
           <select id="proom" onchange="roomChanged()"></select>
           <div class="saved" id="roomSaved"></div></div>
+        <div class="field" style="margin-top:10px"><label class="check"><input type="checkbox" id="psleep" onchange="sleepChanged()"> Sleep mode for this player</label>
+          <div class="sub" style="margin-top:4px">When what is playing looks like sleep sounds (white noise, rain, ocean and similar), the display shows it for 10 seconds, then "Going to sleep" with a 10 second countdown, then turns off for as long as that plays. It applies to music on this player and to Sonos or HomePod shown on its display.</div>
+          <div class="saved" id="sleepSaved"></div></div>
         <div class="sub" id="devInfo" style="margin-top:8px"></div>
       </div>
       <div>
@@ -142,7 +161,7 @@ const fmt=t=>Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0');
 const cur=()=>S.players.find(p=>p.mac===S.sel)||S.players[0];
 
 /* ---------- status, player ---------- */
-async function poll(){try{const s=await api('api/state');
+async function poll(){try{const s=await api('api/state');if(s.version)$('#ver').textContent='v'+s.version;
   S.integration=s.integration;S.players=s.players;S.heard=s.heard;S.uptime=s.uptime;S.enabled=s.sonos_enabled;
   if(!S.sel||!S.players.find(p=>p.mac===S.sel))S.sel=S.players[0]?S.players[0].mac:'';
   if(JSON.stringify(s.sources)!==JSON.stringify(S.sourcesSeen)){S.sourcesSeen=s.sources;loadSources();}
@@ -169,20 +188,37 @@ function renderPlayer(){const p=cur(),none=!p;
   $('#npTitle').textContent=m.title||'Nothing playing';
   $('#npLabel').innerHTML=m.title?'Now playing'+(m.source?' <span class="src">'+esc(m.source)+'</span>':''):'Ready';
   const detail=[m.artist,m.album].filter(Boolean).join(' - ')||(m.kind&&m.source?m.kind+' from '+m.source:(m.source?'From '+m.source:''));
-  $('#npSub').innerHTML=m.title?esc(detail)+'<span class="state">'+esc({play:'Playing',paused:'Paused',buffering:'Buffering',rebuffer:'Buffering'}[p.state]||p.state)+' '+fmt(p.position)+'</span>':'Choose something from the library below.';
+  $('#npSub').innerHTML=m.title?esc(detail)+'<span class="state">'+esc({play:'Playing',paused:'Paused',buffering:'Buffering',rebuffer:'Buffering'}[p.state]||p.state)+'</span>':'Choose something from the library below.';
   $('#bPrev').innerHTML=ic('prev');$('#bNext').innerHTML=ic('next');$('#bStop').innerHTML=ic('stop');$('#volIc').innerHTML=ic('vol',18);
   $('#bPlay').innerHTML=ic(p.state==='paused'?'play':(m.title?'pause':'play'));
-  if(document.activeElement!==$('#vol')){$('#vol').value=p.volume;$('#volv').textContent=p.volume;}
+  if(S.volTarget==null)$('#volv').textContent=p.volume;S.vol=p.volume;
+  if(document.activeElement!==$('#psleep'))$('#psleep').checked=!!p.sleep_mode;
+  S.tl={pos:p.position,at:Date.now(),playing:p.state==='play',dur:p.duration,seekable:!!p.seekable,has:!!m.title,live:/live/i.test(m.kind||'')};drawTimeline();
   if(document.activeElement!==$('#pname'))$('#pname').value=p.name||'';
   if(document.activeElement!==$('#proom'))$('#proom').value=p.show_sonos===false?'__off':(p.apple_room?('a:'+p.apple_room):(p.sonos_room?('s:'+p.sonos_room):''));
   $('#devInfo').textContent='Address '+p.ip+'  -  MAC '+p.mac+'  -  firmware '+p.fw;}
 function ctl(a){const p=cur();if(!p)return toast('No SLIMP3 connected yet',1);post('api/control',{mac:p.mac,action:a}).then(poll).catch(e=>toast(e.message,1));}
-function vol(v){$('#volv').textContent=v;clearTimeout(volT);volT=setTimeout(()=>{const p=cur();if(p)post('api/control',{mac:p.mac,action:'volume',value:+v});},150);}
+/* volume: a short up/down control, 5 per press */
+function volStep(d){const p=cur();if(!p)return;const v=Math.max(0,Math.min(100,(S.volTarget!=null?S.volTarget:S.vol!=null?S.vol:p.volume)+d));
+  S.volTarget=v;$('#volv').textContent=v;clearTimeout(volT);
+  volT=setTimeout(()=>{post('api/control',{mac:p.mac,action:'volume',value:v}).then(()=>{S.volTarget=null;poll();}).catch(e=>{S.volTarget=null;toast(e.message,1);});},250);}
+/* timeline: elapsed, a scrubber, and the length. The position is polled every 1.5 s and advanced locally in between. */
+function drawTimeline(){const t=S.tl,r=$('#seek');if(!t)return;$('#timeline').classList.toggle('hidden',!t.has);
+  const dur=t.seekable?t.dur:0,pos=t.pos+(t.playing?(Date.now()-t.at)/1000:0);
+  r.disabled=!t.seekable;r.max=dur||1;r.title=t.seekable?'Drag to jump to a point in this track':'This cannot be searched: it is live, or its length is not known.';
+  if(!S.seeking)r.value=dur?Math.min(pos,dur):0;
+  $('#tPos').textContent=fmt(S.seeking?+r.value:Math.min(pos,dur||pos));$('#tDur').textContent=dur?fmt(dur):(t.live?'Live':'-:--');}
+function seekMove(v){S.seeking=true;$('#tPos').textContent=fmt(+v);}
+function seekDone(v){const p=cur();if(!p)return;
+  post('api/control',{mac:p.mac,action:'seek',value:+v}).then(()=>{if(S.tl){S.tl.pos=+v;S.tl.at=Date.now();}setTimeout(()=>{S.seeking=false;poll();},800);}).catch(e=>{S.seeking=false;toast(e.message,1);});}
+setInterval(drawTimeline,500);
 
 /* ---------- player settings (auto-saved) ---------- */
 function setSaved(id,t,ok){const e=$(id);e.textContent=t;e.className='saved'+(ok?' ok':'');}
 function nameTyped(){setSaved('#nameSaved','Saving…');clearTimeout(nameT);nameT=setTimeout(saveName,700);}
 async function saveName(){const p=cur();if(!p)return;try{await post('api/player',{mac:p.mac,name:$('#pname').value.trim()});setSaved('#nameSaved','Saved',1);poll();}catch(e){setSaved('#nameSaved',e.message);}}
+async function sleepChanged(){const p=cur();if(!p)return;setSaved('#sleepSaved','Saving…');
+  try{await post('api/player',{mac:p.mac,sleep_mode:$('#psleep').checked});setSaved('#sleepSaved','Saved',1);poll();}catch(e){setSaved('#sleepSaved',e.message);}}
 async function roomChanged(){const p=cur(),v=$('#proom').value;if(!p)return;setSaved('#roomSaved','Saving…');
   const b={mac:p.mac,show_sonos:v!=='__off',sonos_room:'',apple_room:''};
   if(v.startsWith('s:'))b.sonos_room=v.slice(2);else if(v.startsWith('a:'))b.apple_room=v.slice(2);
@@ -217,8 +253,8 @@ async function removeSrv(id){try{await api('api/sources?id='+id,{method:'DELETE'
 
 /* ---------- library ---------- */
 function renderLibrary(){const root=!S.stack.length;
-  $('#bBack').innerHTML=ic('back',18)+' Back';$('#bBack').disabled=root;
-  $('#crumbs').innerHTML=root?'Music servers':S.stack.map((c,i)=>i===S.stack.length-1?esc(c.title):'<span>'+esc(c.title)+' /</span> ').join('');
+  $('#bBack').innerHTML=ic('back',18)+' Back';$('#bBack').classList.toggle('hidden',root);
+  $('#crumbs').innerHTML=crumbsHtml();
   const hasTracks=!root&&S.items.some(i=>!i.container);$('#bAll').classList.toggle('hidden',!hasTracks);$('#bAll').innerHTML=ic('play',16)+' Play all';
   if(root){$('#list').innerHTML=S.sources.length?S.sources.map(s=>'<div class="item" tabindex="0" role="button" onclick="openServer(\''+s.id+'\')" onkeydown="if(event.key===\'Enter\')openServer(\''+s.id+'\')"><span class="ico">'+ic('server')+'</span><div class="t"><div>'+esc(s.name)+'</div><div class="s">Browse this server</div></div><span class="chev">'+ic('chev')+'</span></div>').join(''):
     '<div class="empty">'+ic('server',36)+'<h3>No music servers yet</h3><div>Find your Plex or other DLNA server and add it.</div><div style="margin-top:14px"><button class="btn primary" onclick="openSettings()">Find servers</button></div></div>';return;}
@@ -231,13 +267,25 @@ function renderTile(){const i=S.integration;if(!i)return;const steps=[];
   steps.push('On a dashboard: Edit, Add card, <b>Tile</b>, and choose your SLIMP3 player. Tap the tile to open the player, then use <b>Browse media</b> to pick music from your servers.');
   $('#tileSteps').innerHTML=steps.map(x=>'<li>'+x+'</li>').join('');}
 function openSettings(){$('#settings').open=true;$('#settings').scrollIntoView({behavior:'smooth'});if(!S.foundOnce)findServers();}
-function openServer(id){const s=S.sources.find(x=>x.id===id);S.stack=[{src:id,id:'0',title:s?s.name:'Server'}];load();}
+function openServer(id){const s=S.sources.find(x=>x.id===id);S.stack=[{src:id,id:'0',title:s?s.name:'Server'}];pushNav();load();}
 function openItem(n){const it=S.items[n],top=S.stack[S.stack.length-1];
-  if(it.container){S.stack.push({src:top.src,id:it.id,title:it.title});load();}else play({container:top.id,start_id:it.id});}
-function back(){if(S.stack.length){S.stack.pop();S.stack.length?load():(S.items=[],renderLibrary());}}
-async function load(){const top=S.stack[S.stack.length-1];$('#list').innerHTML='<div class="empty"><div class="spin" style="margin:0 auto"></div></div>';$('#crumbs').textContent=top.title;
+  if(it.container){S.stack.push({src:top.src,id:it.id,title:it.title});pushNav();load();}else play({container:top.id,start_id:it.id});}
+function crumbsHtml(){if(!S.stack.length)return 'Music servers';
+  return '<a href="#" onclick="goRoot();return false">Music servers</a> <span>/</span> '+S.stack.map((c,i)=>i===S.stack.length-1?'<b>'+esc(c.title)+'</b>':'<a href="#" onclick="goUp('+i+');return false">'+esc(c.title)+'</a> <span>/</span> ').join('');}
+/* Back: the button, the breadcrumbs, Escape, and the browser's or phone's own back all step up the library. Each level
+   opened adds one browser-history entry, so the back gesture goes up a level instead of leaving the app. */
+function afterNav(){S.stack.length?load():(S.items=[],renderLibrary());}
+function pushNav(){try{history.pushState({lib:1},'');S.hd=(S.hd||0)+1;}catch(e){}}
+function rewind(k){k=Math.min(k,S.hd||0);if(k>0){S.skip=(S.skip||0)+1;S.hd-=k;try{history.go(-k);}catch(e){S.skip--;}}}
+function back(){if(!S.stack.length)return;S.stack.pop();afterNav();rewind(1);}
+function goUp(i){const n=S.stack.length-1-i;if(n<=0)return;S.stack.length=i+1;afterNav();rewind(n);}
+function goRoot(){const n=S.stack.length;S.stack=[];S.items=[];renderLibrary();rewind(n);}
+window.addEventListener('popstate',()=>{if(S.skip){S.skip--;return;}if(S.stack.length){S.hd=Math.max(0,(S.hd||1)-1);S.stack.pop();afterNav();}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&S.stack.length&&!/INPUT|SELECT|TEXTAREA/.test((document.activeElement||{}).tagName||''))back();});
+function closeSettings(){$('#settings').open=false;$('#library').scrollIntoView({behavior:'smooth'});}
+async function load(){const top=S.stack[S.stack.length-1];$('#list').innerHTML='<div class="empty"><div class="spin" style="margin:0 auto"></div></div>';$('#crumbs').innerHTML=crumbsHtml();$('#bBack').classList.remove('hidden');
   try{const r=await api('api/browse?source='+top.src+'&id='+encodeURIComponent(top.id));S.items=r.items;renderLibrary();}
-  catch(e){$('#list').innerHTML='<div class="empty"><h3>Could not open this</h3><div>'+esc(e.message)+'</div><div style="margin-top:12px"><button class="btn" onclick="load()">Try again</button></div></div>';$('#bBack').disabled=false;}}
+  catch(e){$('#list').innerHTML='<div class="empty"><h3>Could not open this</h3><div>'+esc(e.message)+'</div><div style="margin-top:12px"><button class="btn" onclick="load()">Try again</button></div></div>';$('#bBack').classList.remove('hidden');}}
 function play(b){const p=cur();if(!p)return toast('No SLIMP3 connected yet',1);b.source=S.stack[S.stack.length-1].src;b.mac=p.mac;
   post('api/play',b).then(r=>{toast('Playing '+r.queued+' track'+(r.queued>1?'s':''));poll();}).catch(e=>toast(e.message,1));}
 function playAll(){play({container:S.stack[S.stack.length-1].id});}

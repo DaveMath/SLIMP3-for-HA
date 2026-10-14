@@ -2,6 +2,8 @@
 """Now-playing screen: top line alternates artist / title (scrolling if too long),
 bottom line is a 40-band spectrum analyzer drawn with custom VFD characters."""
 import asyncio
+import math
+import re
 import time
 import unicodedata
 
@@ -18,6 +20,58 @@ def vfd_safe(text):
     t = unicodedata.normalize("NFKD", text or "")
     return "".join(c if 32 <= ord(c) < 127 else ("" if unicodedata.combining(c) else "?")
                    for c in t)
+
+
+# ---- sleep mode: for sleep sounds, show the screen 10 s, count down 10 s, then keep the display dark ----
+SLEEP_SHOW = 10.0
+SLEEP_COUNT = 10.0
+DEFAULT_SLEEP_KEYWORDS = ["white noise", "brown noise", "pink noise", "balanced noise", "bright noise", "dark noise",
+                          "rain", "rainfall", "ocean", "thunder", "thunderstorm", "ambient sounds", "sleep sounds", "nature sounds", "lullaby",
+                          "sleep"]
+
+
+def is_sleepy(texts, keywords):
+    """True if any keyword appears, as whole words and ignoring case, in the given texts (title, artist, ...)."""
+    hay = " ".join(t for t in texts if t).lower()
+    for k in keywords or []:
+        k = (k or "").strip().lower()
+        if k and re.search(r"(?<!\w)" + re.escape(k) + r"(?!\w)", hay):
+            return True
+    return False
+
+
+class SleepWatcher:
+    """Drives the sleep screens. step() returns None when the normal screen should be drawn, or the seconds to wait
+    after it drew a sleep screen itself ('Going to sleep' countdown, then a dark display). A dark display is the
+    VFD at 0% brightness with blank lines; the next normal frame restores full brightness."""
+
+    def __init__(self, player):
+        self.player, self.since, self.blank_at = player, None, 0.0
+        self.sent = self.woke = False
+
+    def step(self, texts, now):
+        p = self.player
+        sleepy = bool(getattr(p, "sleep_mode", False)) and is_sleepy(
+            texts, getattr(p, "sleep_keywords", None) or DEFAULT_SLEEP_KEYWORDS)
+        if not sleepy:
+            self.since = None
+            if self.sent:
+                self.sent, self.woke, self.blank_at = False, True, 0.0
+            return None
+        if self.since is None:
+            self.since = now
+        elapsed = now - self.since
+        if elapsed < SLEEP_SHOW:
+            return None
+        self.sent = True
+        if elapsed < SLEEP_SHOW + SLEEP_COUNT:
+            n = int(math.ceil(SLEEP_SHOW + SLEEP_COUNT - elapsed))
+            p._send(display_packet("Going to sleep".center(LINE_LEN), ("Screen off in %d" % n).center(LINE_LEN)))
+            return 1.0
+        if now - self.blank_at > 30:               # dark; refreshed now and then in case the display lost it
+            p._send(display_packet("", "", brightness=0x03))
+            self.blank_at = now
+        return 2.0
 
 
 def headline(meta):
@@ -76,7 +130,7 @@ class NowPlaying:
     Text layout (spectrum off): line 1 artist, line 2 title, each scrolls if too long."""
 
     def __init__(self, player, meta, spectrum, fps=8, sync_ms=0):
-        self.player, self.spectrum = player, spectrum
+        self.player, self.spectrum, self.meta = player, spectrum, meta
         self.fps, self.sync = fps, sync_ms / 1000.0
         title, first = meta.get("title"), headline(meta)
         if spectrum:
@@ -90,9 +144,16 @@ class NowPlaying:
         t0 = time.time()
         last_custom = last_sent = 0.0
         last = None
+        sleeper = SleepWatcher(self.player)
         try:
             while True:
                 now = time.time()
+                delay = sleeper.step([self.meta.get("title"), self.meta.get("artist"), self.meta.get("album")], now)
+                if delay is not None:
+                    await asyncio.sleep(delay)
+                    continue
+                if sleeper.woke:                  # leaving a sleep screen: redraw everything
+                    last, last_custom, sleeper.woke = None, 0.0, False
                 custom = None
                 if self.spectrum:
                     bands = self.spectrum.frame(self.player.position() - self.sync)
@@ -160,11 +221,18 @@ class SonosNowPlaying:
     async def run(self):
         t0, key, top, bottom = time.time(), None, None, None
         last, last_sent = None, 0.0
+        sleeper = SleepWatcher(self.player)
         try:
             while True:
                 st = self.get_state()
                 animated = False
                 if st:
+                    delay = sleeper.step([st.get("station"), st.get("title"), st.get("artist"), st.get("album")], time.time())
+                    if delay is not None:
+                        await asyncio.sleep(delay)
+                        continue
+                    if sleeper.woke:
+                        last, sleeper.woke = None, False
                     new = (st["station"], st["room"], st["artist"], st["title"], st["album"], st.get("source"))
                     if new != key:
                         key, t0, last = new, time.time(), None

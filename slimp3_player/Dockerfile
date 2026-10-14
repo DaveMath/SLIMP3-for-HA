@@ -2,6 +2,7 @@ FROM ghcr.io/home-assistant/base:latest
 
 ARG BUILD_VERSION
 ARG BUILD_ARCH
+ENV SLIMP3_VERSION=${BUILD_VERSION}
 LABEL \
   io.hass.version="${BUILD_VERSION}" \
   io.hass.type="app" \

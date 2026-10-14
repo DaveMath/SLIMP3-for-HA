@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.11.0
+- **Sleep mode (optional, off by default).** When what is playing matches sleep keywords (white noise, rain, ocean and similar), the
+  display shows it for 10 seconds, then `Going to sleep` with a 10 second countdown, then stays dark while it plays. Switch per player on
+  the page or `sleep_mode` in the configuration; editable `sleep_keywords`. Works for music from the app and for Sonos and HomePod
+  mirroring.
+- **Timeline scrubber** on the web page: elapsed time, drag to seek, length. Seeking works for MP3 pass-through (using the file's seek
+  table when it has one, otherwise the average bit rate), the ffmpeg path and the spectrum analyzer. Not for live sources or tracks of
+  unknown length. New API action `seek`, and `duration`, `seekable` and `sleep_mode` in the player state.
+- **Volume** is now a short minus/plus control (5 per press) instead of a long slider.
+- **Back button** is now prominent and appears inside every server and folder; also clickable breadcrumbs, the Escape key, and the
+  browser's or phone's back gesture. Settings has a **Back to the library** button.
+- The page shows its version in the header and is served with `Cache-Control: no-store`, so an old copy cannot hide new controls.
+- New docs: `docs/WEB-PAGE.md`, `docs/SLEEP-MODE.md`; updates throughout.
+
 ## 0.10.0
 - **HomePods.** HomePods and HomePod minis are found automatically and shown on a SLIMP3's display while it is idle, like Sonos:
   the HomePod's name over `Artist - Title`. Read-only and no pairing. Choose Sonos rooms and HomePods from one dropdown on the sidebar

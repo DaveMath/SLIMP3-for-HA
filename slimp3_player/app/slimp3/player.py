@@ -2,7 +2,7 @@
 import asyncio
 
 from . import mas3507d
-from .nowplaying import NowPlaying
+from .nowplaying import DEFAULT_SLEEP_KEYWORDS, NowPlaying
 from .mp3 import Mp3Source
 from .protocol import display_packet, i2c_packet
 from .stream import Stream
@@ -45,6 +45,10 @@ class Player:
         self.sonos_room = ""
         self.apple_room = ""
         self.show_sonos = True
+        self.sleep_mode = False
+        self.sleep_keywords = list(DEFAULT_SLEEP_KEYWORDS)
+        self.pos_base = 0.0          # seconds into the track where this stream started (after a seek)
+        self._start_at = 0.0
         self.meta = {}
         self.queue = []
         self.index = -1
@@ -69,7 +73,10 @@ class Player:
         state = self.stream.state if self.stream else "stop"
         return {"mac": self.mac, "name": self.name, "fw": self.fw, "configured": self.configured, "sonos_room": self.sonos_room, "apple_room": self.apple_room,
                 "show_sonos": self.show_sonos, "ip": self.addr[0], "state": state,
-                "position": round(self.position(), 1), "volume": self.volume,
+                "position": round(self.pos_base + self.position(), 1), "volume": self.volume,
+                "sleep_mode": self.sleep_mode,
+                "duration": (self.meta.get("duration") if self.stream else None),
+                "seekable": bool(self.stream and self.meta.get("seekable")),
                 "meta": self.meta if self.stream else {}, "index": self.index,
                 "queue_len": len(self.queue)}
 
@@ -91,7 +98,7 @@ class Player:
                                     it.get("album") or "", live="Broadcast" in (it.get("class") or ""),
                                     source_name=it.get("source") or "", kind=it.get("kind") or "",
                                     mp3=("audio/mpeg" in proto) if proto else None,
-                                    length_s=_seconds(it.get("duration")))
+                                    length_s=_seconds(it.get("duration")), start_s=self._take_start())
                 except Exception as e:  # keep the queue moving on a bad track
                     self.log("play failed: %s" % e)
                     continue
@@ -100,6 +107,22 @@ class Player:
             self.show("Queue finished", "Pick more music in Home Assistant")
         except asyncio.CancelledError:
             pass
+
+    def _take_start(self):
+        s, self._start_at = self._start_at, 0.0
+        return s
+
+    def seek(self, seconds):
+        """Restart the current track at `seconds` (the page's timeline). Only for tracks of known length that are
+        not live. Returns False if this one cannot be searched."""
+        m = self.meta
+        if not (self.stream and m.get("seekable") and self.queue and self.index >= 0):
+            return False
+        top = max(0.0, float(m.get("duration") or 0) - 2.0)
+        self._start_at = max(0.0, min(float(seconds), top))
+        self.index -= 1                  # the queue runner replays the same item from there
+        self.ended.set()
+        return True
 
     def next(self):
         if self.queue and self.index + 1 < len(self.queue):
@@ -131,7 +154,7 @@ class Player:
             self.sonos_task = None
 
     async def play(self, source, title="", artist="", album="", duration=None, live=False, mp3=None, length_s=None,
-                   source_name="", kind=""):
+                   source_name="", kind="", start_s=0.0):
         """MP3 sources are fed to the SLIMP3 untouched (it decodes MP3 itself). Anything else, and
         live streams, are converted to 128 kbps MP3 by ffmpeg. mp3=None means: judge by the file name."""
         self.cancel_sonos()
@@ -140,6 +163,7 @@ class Player:
         if mp3 is None:
             mp3 = source.lower().split("?")[0].endswith(".mp3")
         bytes_per_sec = 16000.0
+        pos_fn = None
         if mp3 and self.passthrough and not live and not source.startswith("rtsp"):
             try:
                 self.reader = await Mp3Source(source).open()
@@ -147,6 +171,16 @@ class Player:
                     bytes_per_sec = self.reader.total_bytes / float(length_s)
                 elif self.reader.bitrate:
                     bytes_per_sec = self.reader.bitrate / 8.0
+                if self.reader.has_toc and length_s:      # variable bit rate: exact seeking and position
+                    start_byte = self.reader.byte_for_time(start_s, length_s) if start_s else 0
+                    if start_s:
+                        await self.reader.seek_to(start_byte)
+                    r, t0 = self.reader, self.reader.time_for_byte(start_byte, length_s)
+                    pos_fn = lambda consumed: r.time_for_byte(start_byte + consumed, length_s) - t0
+                    start_s = t0
+                    self.log("variable bit rate file with a seek table: exact seeking")
+                elif start_s:
+                    await self.reader.seek_to(start_s * bytes_per_sec)
                 if duration:
                     self.reader.limit_bytes(duration * bytes_per_sec)
                 self.log("pass-through MP3 (about %d kbps), no transcoding" % (bytes_per_sec * 8 / 1000))
@@ -154,7 +188,7 @@ class Player:
                 self.log("pass-through failed (%s); transcoding instead" % e)
                 await self._close_reader()
         if self.reader is None:
-            cmd = [FFMPEG, "-nostdin", "-v", "error", "-i", source]
+            cmd = [FFMPEG, "-nostdin", "-v", "error"] + (["-ss", str(start_s)] if start_s else []) + ["-i", source]
             if duration:
                 cmd += ["-t", str(duration)]
             cmd += ["-vn", "-map_metadata", "-1", "-c:a", "libmp3lame", "-b:a", "128k",
@@ -163,14 +197,17 @@ class Player:
             self.proc = await asyncio.create_subprocess_exec(
                 *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
         self.meta = {"title": title or source.rsplit("/", 1)[-1], "artist": artist, "album": album,
-                     "source": source_name, "kind": kind}
+                     "source": source_name, "kind": kind, "duration": length_s or None,
+                     "seekable": bool(length_s) and not live}
+        self.pos_base = float(start_s or 0.0)
         if self.use_spectrum and not live:   # optional extra: needs numpy and a second decode of the source
             from .spectrum import Spectrum
-            self.spectrum = Spectrum(source, FFMPEG, duration)
+            self.spectrum = Spectrum(source, FFMPEG, duration, start_s)
             self.spectrum.start()
         self.ended.clear()
         s = Stream(self.loop, self._send, self._read, self.log)
         s.bytes_per_sec = bytes_per_sec
+        s.pos_fn = pos_fn
         s.on_end = self._finished
         s.on_dead = self._finished
         s.on_started = self._started

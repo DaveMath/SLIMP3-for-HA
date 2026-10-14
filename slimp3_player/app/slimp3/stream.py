@@ -30,6 +30,7 @@ class Stream:
         self.state = "stop"
         self.seq = 1
         self.bytes_per_sec = BYTES_PER_SEC     # set from the MP3 bit rate for pass-through streams
+        self.pos_fn = None                     # optional: consumed bytes -> seconds (variable bit rate seek table)
         self.gen = 0
         self._t_retx = self._t_next = None
         self._reset()
@@ -67,7 +68,7 @@ class Stream:
 
     def position(self):
         """Seconds of audio the decoder has consumed (interpolated between acks)."""
-        pos = self.played_bytes / self.bytes_per_sec
+        pos = self.pos_fn(self.played_bytes) if self.pos_fn else self.played_bytes / self.bytes_per_sec
         if self.state in ("play", "eof"):
             pos += min(time.time() - self.played_t, 0.25)
         return pos

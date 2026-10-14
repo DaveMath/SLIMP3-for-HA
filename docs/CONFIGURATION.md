@@ -12,6 +12,8 @@ Changes apply after restarting the app.
 | `sonos_ips` | `[]` | Optional. Sonos players are found automatically; add an address only if discovery cannot see them (for example another network segment). One address is enough, the app reads the whole household from it. |
 | `sonos_discovery` | `true` | Search the network for Sonos players. `false` uses only `sonos_ips`. |
 | `apple_discovery` | `true` | Find HomePods and show what they play, like Sonos (read-only, no pairing). See [HOMEPOD.md](HOMEPOD.md). |
+| `sleep_mode` | `false` | Sleep mode for every player: when what is playing looks like sleep sounds, show it 10 s, count down 10 s, then keep the display dark while it plays. See [SLEEP-MODE.md](SLEEP-MODE.md). |
+| `sleep_keywords` | white noise, brown noise, pink noise, balanced noise, bright noise, dark noise, rain, rainfall, ocean, thunder, thunderstorm, ambient sounds, sleep sounds, nature sounds, lullaby, sleep | Words that mark sleep sounds, matched as whole words, ignoring case, in the title, artist or album. `Purple Rain` matches `rain`; remove words you do not want. |
 | `players` | `[]` | Per-SLIMP3 settings, matched by MAC address. See below. |
 | `sonos_display` | `true` | Default for `show_sonos`: show Sonos on the display while the SLIMP3 is idle. |
 | `default_volume` | `40` | Volume (0-100) a player starts at. |
@@ -29,6 +31,7 @@ Changes apply after restarting the app.
 | `name` | no | A label shown in the sidebar page and the log. |
 | `sonos_room` | no | The Sonos room this player mirrors. Empty: mirror any playing Sonos group. |
 | `apple_room` | no | The HomePod this player mirrors (its name in the Home app). Set one of `sonos_room` and `apple_room`, or neither to mirror anything that is playing. |
+| `sleep_mode` | no | Overrides the global `sleep_mode` for this player. |
 | `show_sonos` | no | `false` turns the Sonos display off for this player. |
 | `volume` | no | Starting volume for this player. |
 | `spectrum` | no | Overrides the global `spectrum` for this player (set `true` to turn the analyzer on for just this player). |
@@ -89,6 +92,12 @@ Saved settings **override** the same fields in `players` from the options; field
 come from the options (for example `volume`). Use the page for the everyday choices and `players` when you want
 the setup written down in configuration.
 
+### Sleep mode on the sidebar page
+
+Under **This player**, the **Sleep mode for this player** checkbox turns it on or off for that SLIMP3 and is saved immediately. The keyword
+list is edited in the configuration only. Details and limits: [SLEEP-MODE.md](SLEEP-MODE.md). The page itself (timeline, volume,
+Back) is described in [WEB-PAGE.md](WEB-PAGE.md).
+
 ## Boot screens: seeing each player's IP and MAC
 
 When a SLIMP3 connects, or restarts (it broadcasts a new discovery), the app takes over its display for
@@ -145,6 +154,9 @@ read an HDHomeRun channel's AC-3 5.1 audio and converted it to 128 kbps stereo M
    `apple_room`, or any) is playing, it shows that: the Sonos station and track, or the HomePod's name and what it plays.
    With neither chosen it shows whichever is playing, Sonos first.
 3. Otherwise it shows `SLIMP3 server ready`.
+
+With **sleep mode** on, steps 1 and 2 follow the rule in [SLEEP-MODE.md](SLEEP-MODE.md): sleep sounds are shown for 10 seconds, then a 10 second
+countdown, then a dark display until the content changes.
 
 Sonos groups matter: if the Kitchen is grouped with the Living Room, a SLIMP3 mapped to `Kitchen`
 mirrors the group's coordinator, because the coordinator knows what the group plays. If the Kitchen

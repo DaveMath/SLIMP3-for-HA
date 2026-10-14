@@ -14,19 +14,28 @@ from aiohttp import web
 
 from slimp3.apple import AppleMonitor
 from slimp3.net import local_ipv4s
-from slimp3.nowplaying import SonosNowPlaying
+from slimp3.nowplaying import DEFAULT_SLEEP_KEYWORDS, SonosNowPlaying
 from slimp3.server import Server
 from slimp3.sonos import SonosMonitor
 from slimp3.upnp import MediaServer, discover_servers, resolve_server, short_name
 
 OPTS_PATH = os.environ.get("SLIMP3_OPTIONS", "/data/options.json")
 PORT = int(os.environ.get("SLIMP3_PORT", "8099"))
+VERSION = os.environ.get("SLIMP3_VERSION", "dev")
 UDP_PORT = int(os.environ.get("SLIMP3_UDP_PORT", "3483"))    # only a test setup changes this
 WEB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
 T0 = time.time()
 # Home Assistant's internal network (ingress gateway is 172.30.32.2); set SLIMP3_ALLOW_ALL=1 for local dev.
 ALLOWED = [ipaddress.ip_network(n) for n in ("127.0.0.0/8", "172.30.32.0/23")]
 ALLOW_ALL = os.environ.get("SLIMP3_ALLOW_ALL") == "1"
+
+
+@web.middleware
+async def no_cache(request, handler):
+    """The page and its data must never be served from a browser or proxy cache (an old page would hide new controls)."""
+    resp = await handler(request)
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
 
 
 @web.middleware
@@ -211,6 +220,8 @@ class App:
         p.name = c.get("name") or ""
         p.sonos_room = c.get("sonos_room") or ""
         p.apple_room = c.get("apple_room") or ""
+        p.sleep_mode = bool(c.get("sleep_mode", self.opts.get("sleep_mode", False)))
+        p.sleep_keywords = [str(k) for k in (self.opts.get("sleep_keywords") or DEFAULT_SLEEP_KEYWORDS)]
         p.show_sonos = c.get("show_sonos", self.opts.get("sonos_display", True))
         if "volume" in c:
             p.volume = int(c["volume"])
@@ -328,6 +339,7 @@ class App:
             "heard": [{"ip": ip, "ago": int(now - t)} for ip, t in self.server.heard.items()],
             "uptime": int(now - self.started), "udp_port": UDP_PORT,
             "sonos_enabled": self.sonos.enabled, "apple_enabled": self.apple.enabled, "instance_id": self.instance_id,
+            "version": VERSION,
             "integration": self.integration})
 
     async def sources_list(self, req):
@@ -430,6 +442,9 @@ class App:
             p.prev()
         elif act == "identify":
             self.start_welcome(p, force=True)
+        elif act == "seek":
+            if not p.seek(float(body["value"])):
+                raise web.HTTPBadRequest(text="This cannot be searched: it is live, or its length is not known.")
         elif act == "volume":
             p.set_volume(int(body["value"]))
         else:
@@ -487,6 +502,8 @@ class App:
             p.sonos_room = s["sonos_room"] = str(body["sonos_room"])
         if "apple_room" in body:
             p.apple_room = s["apple_room"] = str(body["apple_room"])
+        if "sleep_mode" in body:
+            p.sleep_mode = s["sleep_mode"] = bool(body["sleep_mode"])
         if "show_sonos" in body:
             p.show_sonos = s["show_sonos"] = bool(body["show_sonos"])
         p.configured = True
@@ -525,7 +542,7 @@ class App:
 
     async def run(self):
         await self.server.start(port=UDP_PORT)
-        app = web.Application(middlewares=[guard])
+        app = web.Application(middlewares=[guard, no_cache])
         app.add_routes([
             web.get("/", self.index), web.get("/api/state", self.state),
             web.get("/api/browse", self.browse), web.post("/api/play", self.play),

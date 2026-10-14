@@ -34,6 +34,17 @@ configuration:
       Show what a HomePod is playing on a SLIMP3 display, like Sonos. HomePods are found on the network and need no
       pairing; the app only reads what they are playing. Needs the HomePod access setting to allow your network
       (the default).
+  sleep_mode:
+    name: Sleep mode
+    description: >-
+      When what is playing looks like sleep sounds (the keywords below), show it for 10 seconds, then
+      "Going to sleep" with a 10 second countdown, then turn the SLIMP3 display off for as long as that plays.
+      Applies to music on the SLIMP3 and to Sonos and HomePod mirroring. Can be set per player.
+  sleep_keywords:
+    name: Sleep sound keywords
+    description: >-
+      Words that mark sleep sounds, matched as whole words in the title, artist or album, ignoring case. Note that
+      a song such as "Purple Rain" also matches "rain".
   boot_screens:
     name: Show setup screens on the SLIMP3
     description: >-

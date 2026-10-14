@@ -118,12 +118,33 @@ no screen is blank or just says "Now playing": when something is not known, the 
 | Sonos, radio station | the station, for example `CH 55 - SiriusXM Chill` | `Artist - Title` (or the source if no track) |
 | Sonos, a track | the room and source, for example `Office: Spotify` | `Artist - Title` |
 | Sonos, no track info | the room | where it comes from: `TV audio`, `Line-in`, or `Playing` |
+| Sleep sounds, first 10 s (sleep mode on) | the normal screen | the normal screen |
+| Sleep sounds, next 10 s | `Going to sleep` | `Screen off in 10` ... `Screen off in 1` |
+| Sleep sounds, after that | blank, display at 0% brightness | blank; refreshed every 30 s in case the display lost it |
 | HomePod playing | `Kitchen: HomePod` or `Kitchen: HomePod mini` | `Artist - Title` (a podcast: `Show - Episode`) |
 
 `<server>` is a short name for the music server (`HDHomeRun` for `HDHomeRun DMS 1069CDD7`, `Plex` for
 `Plex Media Server: HAPi5`). The sidebar page and the Home Assistant media player show the same information: the
 page's player card shows the server next to "Now playing" and "Live TV from HDHomeRun" when there is no artist; the media player uses the
 server name as the artist and the app name, and the type `channel` for live sources.
+
+## Seeking
+
+The web page's timeline restarts the current queue item at a time offset (`POST /api/control` with `action: seek`). The stream engine
+is not rewound; the player closes the current stream and opens the same item again at that point, then the display and the buffer
+carry on as for any new track.
+
+- **MP3 pass-through.** The file's Xing/Info header, when present, holds a 100 entry table mapping each percent of the duration to a
+  byte position. The app looks the time up in it, asks the server for a byte range from there (`Range: bytes=N-`), skips to the next
+  valid MPEG frame header, and reports the position back through the same table so the timeline matches the sound. Without a table,
+  the byte is the time times the average rate (file size over duration), exact for constant bit rate only. A server that ignores
+  `Range` is read and discarded up to the position.
+- **ffmpeg path.** `-ss` before the input.
+- **Spectrum analyzer.** Its decoder starts at the same offset.
+- **Measured** on a 188 second Plex file with a seek table: restarts landed between 0.1 and 0.8 seconds from the request (measured by
+  adding up every frame's real duration). With the average-rate method on the same file the error was up to 1.4 seconds, and an
+  earlier version that read the wrong first-frame bit rate was off by up to 8 seconds.
+- **Not seekable:** live sources and items with no known length (`seekable` is false in the API and the scrubber is disabled).
 
 ## Boot screens
 
@@ -185,6 +206,14 @@ When it is on, at startup the app times the analyzer on its own host and logs th
 frame would take more than half of a display frame period, or numpy is missing, it switches to the
 artist/title layout by itself. Live sources (a TV tuner) always skip the analyzer, because it reads the
 source separately from the audio sent to the player.
+
+## Sleep mode
+
+One small watcher per display screen (the music screen and the Sonos/HomePod mirror screen share it). Each time the screen
+refreshes, it asks whether the title, artist, album or station contains a keyword as a whole word. While it does, it counts from the
+first match: 10 seconds of the normal screen, 10 seconds of the countdown, then a blank frame at brightness 0%. It costs one
+packet every 30 seconds while dark, and when the match goes away the next normal frame restores brightness and redraws both lines.
+It is off unless you switch it on. See [SLEEP-MODE.md](SLEEP-MODE.md).
 
 ## Network discovery
 

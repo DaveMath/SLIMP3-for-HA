@@ -16,12 +16,13 @@ For local development, set `SLIMP3_ALLOW_ALL=1` to lift the address check.
   "players": [{
     "mac": "00:04:20:12:34:56", "name": "Den", "ip": "192.168.1.50",
     "state": "play", "position": 41.2, "volume": 40,
+    "duration": 188.0, "seekable": true, "sleep_mode": false,
     "meta": {"title": "...", "artist": "...", "album": "..."},
     "fw": "2.2", "configured": true,
     "index": 3, "queue_len": 31
   }],
   "sources": [{"id": "1a2b3c4d", "name": "Plex Media Server: <host>"}],
-  "heard": [{"ip": "192.168.1.50", "ago": 12}], "uptime": 340, "udp_port": 3483, "sonos_enabled": true,
+  "heard": [{"ip": "192.168.1.50", "ago": 12}], "uptime": 340, "udp_port": 3483, "sonos_enabled": true, "version": "0.11.0",
   "instance_id": "e70a23d7...", "integration": {"installed": true, "version": "0.8.0", "restart_needed": false}
 }
 ```
@@ -29,7 +30,8 @@ For local development, set `SLIMP3_ALLOW_ALL=1` to lift the address check.
 `instance_id` is a stable identity for this app (the integration uses it as its unique id). `integration` reports whether the
 Home Assistant integration was copied into the Home Assistant configuration folder. `heard` lists addresses that sent a discovery or hello packet recently (what the page shows while it is
 looking for a player). `state` is one of `stop`, `buffering`, `play`, `paused`, `rebuffer`, `eof`. `index` is the zero-based
-queue position. `position` is seconds of audio the decoder has consumed.
+queue position. `position` is seconds into the track (it includes where a seek started). `duration` is the track length in seconds, or null if unknown. `seekable` is true when
+`seek` will work (not live, length known). `sleep_mode` is this player's switch. `version` is the app's version. Every response carries `Cache-Control: no-store`.
 
 ## Music servers
 
@@ -60,15 +62,16 @@ Playback continues through the container automatically. Returns `{"queued": N, "
 ## `POST /api/control`
 
 ```json
-{"action": "pause|resume|toggle|stop|next|prev|volume|identify", "value": 40, "mac": "..."}
+{"action": "pause|resume|toggle|stop|next|prev|volume|seek|identify", "value": 40, "mac": "..."}
 ```
 
-`value` is only used by `volume` (0-100). `identify` runs the boot screens (IP, MAC, prompts) on that player. Returns the player's status.
+`value` is used by `volume` (0-100) and `seek` (seconds from the start of the track; clamped to just before the end). `seek` returns 400 if the
+item is live or its length is not known. `identify` runs the boot screens (IP, MAC, prompts) on that player. Returns the player's status.
 
 ## `POST /api/player`
 
 ```json
-{"mac": "...", "name": "Den", "sonos_room": "Living Room", "apple_room": "", "show_sonos": true}
+{"mac": "...", "name": "Den", "sonos_room": "Living Room", "apple_room": "", "show_sonos": true, "sleep_mode": false}
 ```
 
 Saves a player's name and Sonos room (any subset of the fields) and applies it immediately. Saved values

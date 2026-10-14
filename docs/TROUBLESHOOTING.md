@@ -70,6 +70,28 @@ itself off. Live sources (TV tuners) never show the analyzer.
 The display ROM is not Unicode. Titles are folded to ASCII and characters that cannot be folded show as
 `?`. If other characters appear, open an issue with the exact title and your player's firmware version.
 
+## I do not see the Back button, the timeline or the volume buttons
+
+The header shows the page's version (for example `v0.11.0`). If it shows an older version, or none, the browser or Home Assistant is showing a
+stale copy: reload the page (a hard reload, or close and reopen the sidebar entry; in the Home Assistant app, restart the
+app after updating it). The page now tells browsers not to cache it. Also:
+
+- **Back** appears only inside a server or folder, at the left of the library header. On the top list it is hidden because there is
+  nothing to go back to. Without it you can still click a name in the breadcrumb, press Escape, or use the browser's or phone's back.
+- The **timeline** is hidden until something is playing, and greyed out for live sources and tracks of unknown length.
+- **Volume** is the small minus and plus pair at the right of the controls; each press is 5.
+
+## Seeking lands in the wrong place, or does nothing
+
+See [WEB-PAGE.md](WEB-PAGE.md#seeking-how-it-works-and-its-limits). Files without a seek table are positioned by average bit rate and can be a few seconds
+off if they are variable-bit-rate; setting `mp3_passthrough: false` makes ffmpeg do the seeking, which is exact. A greyed-out scrubber means live or unknown length.
+
+## Sleep mode does not turn the display off
+
+The content must contain one of the `sleep_keywords` as a whole word (title, artist, album or station), the switch must be on for that player,
+and the 10 second show plus 10 second countdown must have passed. See [SLEEP-MODE.md](SLEEP-MODE.md). If the display only dims, tell us: the
+display has four brightness levels and this has not yet been confirmed on every unit.
+
 ## A HomePod does not show
 
 See [HOMEPOD.md](HOMEPOD.md). The page lists the HomePods it found. Check the log for `HomePods found:` and for

@@ -29,7 +29,7 @@ separate card to install.
 
 ## What it does not do
 
-- No seeking within a track, shuffle or repeat.
+- No seeking from this media player, shuffle or repeat. (Seeking is on the sidebar page, see [WEB-PAGE.md](WEB-PAGE.md).)
 - While the SLIMP3 mirrors Sonos on its display, the media player shows idle: it reflects only what the SLIMP3 plays itself.
 - The library browser shows the folders a server offers. Large folders are shown up to the first 200 entries.
 

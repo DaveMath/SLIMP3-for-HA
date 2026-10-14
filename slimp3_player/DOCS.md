@@ -41,6 +41,17 @@ Sonos room is playing: top line is the station (for example `CH 55 - SiriusXM Ch
 
 The app only reads from Sonos. It cannot get Sonos audio, so there is no spectrum for Sonos.
 
+## Web page
+
+Timeline scrubber (drag to jump within a track), a small volume control (minus and plus, 5 per press), and a Back button, breadcrumbs,
+Escape and the phone's back gesture for the library. The header shows the version. Details: `docs/WEB-PAGE.md` in the repository.
+
+## Sleep mode
+
+Optional. With `sleep_mode: true` (or the checkbox in Settings), when what is playing looks like sleep sounds (the `sleep_keywords`,
+for example white noise or rain), the display shows it for 10 seconds, shows `Going to sleep` with a 10 second countdown, then stays
+dark while that plays. Some songs match a keyword (for example "Purple Rain"); edit the list to taste. Details: `docs/SLEEP-MODE.md`.
+
 ## More
 
 Full documentation: configuration, how it works, API and troubleshooting are in the
