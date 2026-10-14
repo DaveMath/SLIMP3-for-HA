@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.12.2
+- **Less polling.** Sonos is polled every 3 seconds only while a wanted room is playing (and for a minute after), otherwise every 10 seconds.
+  A HomePod is checked directly every 10 seconds only while it is playing, otherwise every 60 seconds; push updates are unchanged.
+- **Stop confirmation.** Two seconds after a mirrored speaker reports a stop, every connected speaker is read once more, and the display goes
+  black only if it is still not playing. A wrong stop report no longer blanks the display.
+- New docs/POLLING.md: what is polled, how often, and the method used.
+
 ## 0.12.1
 - When a mirrored Sonos, HomePod or Cast speaker stops or pauses, the display now goes black after 4 seconds instead of keeping the speaker's
   name on screen. The next thing that plays restores it.

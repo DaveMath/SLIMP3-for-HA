@@ -10,7 +10,7 @@ To choose which speaker a SLIMP3 shows, set `sonos_room`, `apple_room` or `cast_
 
 ## What shows
 
-A speaker appears only while it is **playing** and the SLIMP3 is not playing its own music. When it stops or pauses, the last screen stays for 4 seconds and then the display goes black (brightness 0%, the same dark display sleep mode uses) until something plays again. Starting music on the SLIMP3 takes over the display.
+A speaker appears only while it is **playing** and the SLIMP3 is not playing its own music. When it stops or pauses, the last screen stays for about 4 seconds (the app reads the speakers once more at 2 seconds, in case the stop report was wrong) and then the display goes black (brightness 0%, the same dark display sleep mode uses) until something plays again. Starting music on the SLIMP3 takes over the display.
 
 | Source | Line 1 | Line 2 |
 | --- | --- | --- |
@@ -26,7 +26,7 @@ Text that fits is centered and still; longer text scrolls. Because the display s
 
 - **Discovery.** An SSDP (multicast) search for Sonos `ZonePlayer` devices, repeated every 10 minutes and only while an idle SLIMP3 wants Sonos. Addresses in `sonos_ips` are used as well; one is enough, since the app reads the whole household from it. Set `sonos_discovery: false` to use only those addresses.
 - **Rooms and groups.** The app asks one player for the household topology (UPnP `ZoneGroupTopology`, port 1400) and caches it for 60 seconds. A player mapped to a room mirrors the **group** the room is in, because the group coordinator is what knows what plays. An ungrouped, stopped room shows nothing even if another room plays.
-- **Polling.** Every 3 seconds it reads the transport state of the groups a SLIMP3 is showing, and reads the track only if a group is playing, over one persistent connection per player. It sleeps when no idle SLIMP3 wants Sonos.
+- **Polling.** Every 3 seconds while a wanted group is playing (and for a minute after), otherwise every 10 seconds, it reads the transport state of the groups a SLIMP3 is showing, and reads the track only if a group is playing, over one persistent connection per player. It sleeps when no idle SLIMP3 wants Sonos. See [POLLING.md](POLLING.md).
 - **The station line** comes from the current item's title when it is a radio broadcast; artist and title come from the track metadata, or from the stream-content string some radio sources use.
 - **No spectrum.** Sonos exposes control and metadata, not audio.
 
@@ -35,7 +35,7 @@ Text that fits is centered and still; longer text scrolls. Because the display s
 HomePods and HomePod minis are found with Bonjour (the discovery the Home app uses). They report what they play over AirPlay 2, and the app listens with the [pyatv](https://pyatv.dev) library (MIT): it receives push updates and does no polling. A HomePod needs no pairing for this, so no credentials are stored. An Apple TV requires a PIN and is not supported.
 
 - The app connects **only while a SLIMP3 is idle and wants a HomePod**, and only to the HomePods it wants. Starting playback on the SLIMP3 closes the connections.
-- Besides push updates, the app asks each connected HomePod directly every 10 seconds, so a stop is never missed.
+- Besides push updates, the app asks a HomePod that is playing directly every 10 seconds (every 60 seconds otherwise), so a stop is not missed.
 - Info shows what each HomePod reports. If a HomePod reports `paused` (Ambient Sounds such as White Noise can do this), the SLIMP3 shows nothing for it, and Info shows exactly what the HomePod said.
 - pyatv imports a compiled audio package (`miniaudio`) that it uses only to stream audio *to* speakers. It has no prebuilt version for the app's container and this app never streams audio, so a small stand-in module (`app/stubs/miniaudio.py`) satisfies the import. The container installs pyatv from prebuilt packages only (no compiler); if that install fails, the app still runs without HomePod support, and Info says why.
 - Cost: with two HomePods connected and idle, about 0.10% of a core and 5 MB of memory (six TCP connections). With nothing connected, about 0.03%.

@@ -34,6 +34,8 @@ def load_pyatv(log=print):
 
 class AppleMonitor:
     REDISCOVER = 600
+    POLL_PLAYING = 10.0     # seconds between direct checks of a HomePod that last said it was playing (catches a missed stop)
+    POLL_IDLE = 60.0        # ... and of one that is not playing; push updates announce a start
 
     def __init__(self, log=print, enabled=True):
         self.log = log
@@ -182,17 +184,28 @@ class AppleMonitor:
                 # Push updates can be missed (a stop that is never announced would leave the display on the last
                 # song), so ask each connected HomePod directly every 10 seconds as well.
                 now = time.time()
-                for name, atv in list(self._conns.items()):
-                    if now - self._poll_t.get(name, 0) >= 10:
-                        self._poll_t[name] = now
-                        try:
-                            self._apply(name, await asyncio.wait_for(atv.metadata.playing(), 5))
-                        except Exception:
-                            pass
+                for name in list(self._conns):
+                    every = self.POLL_PLAYING if (self.devices.get(name) or {}).get("state") == "PLAYING" else self.POLL_IDLE
+                    if now - self._poll_t.get(name, 0) >= every:
+                        await self._poll(name)
             except Exception as e:
                 self.log("HomePod monitor error: %s: %s" % (type(e).__name__, e))
                 await asyncio.sleep(10)
             await asyncio.sleep(interval)
+
+    async def _poll(self, name, timeout=5):
+        atv = self._conns.get(name)
+        self._poll_t[name] = time.time()
+        if atv is None:
+            return
+        try:
+            self._apply(name, await asyncio.wait_for(atv.metadata.playing(), timeout))
+        except Exception:
+            pass
+
+    async def poll_now(self):
+        """Ask every connected HomePod for its state right now (used to confirm a stop before the display goes black)."""
+        await asyncio.gather(*[self._poll(n, 2) for n in list(self._conns)])
 
     def active(self, name=None):
         """The playing HomePod called `name` (case-insensitive), or any playing HomePod if name is empty."""

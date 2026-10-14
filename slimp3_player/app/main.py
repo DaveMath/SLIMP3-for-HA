@@ -28,6 +28,7 @@ UDP_PORT = int(os.environ.get("SLIMP3_UDP_PORT", "3483"))    # only a test setup
 WEB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
 T0 = time.time()
 BLANK_AFTER = 4.0     # seconds with nothing playing on the mirrored speaker before the display goes black
+CONFIRM_AFTER = 2.0   # ... and after this long the speakers are asked once more, in case the stop report was wrong
 # Home Assistant's internal network (ingress gateway is 172.30.32.2); set SLIMP3_ALLOW_ALL=1 for local dev.
 ALLOWED = [ipaddress.ip_network(n) for n in ("127.0.0.0/8", "172.30.32.0/23")]
 ALLOW_ALL = os.environ.get("SLIMP3_ALLOW_ALL") == "1"
@@ -248,6 +249,18 @@ class App:
     # ---- boot / identify screens ------------------------------------
     def idle_screen(self, p):
         p.show("SLIMP3 server ready", ("%s  %s" % (p.name, p.addr[0])).strip())
+
+    async def _confirm(self, p):
+        """One fresh read of every speaker type, so a stop that was reported wrongly (or a start that was missed) is
+        corrected before the display goes black. This is the only extra request a stop costs."""
+        try:
+            jobs = [m.poll_now() for m in (self.apple, self.sonos, self.cast) if m.enabled]
+            await asyncio.wait_for(asyncio.gather(*jobs, return_exceptions=True), 4)
+        except Exception:
+            pass
+        finally:
+            if p.confirming:
+                p.confirm_done = True
 
     def blank(self, p):
         """Black display (0% brightness, blank lines). The next frame drawn restores full brightness."""
@@ -516,12 +529,16 @@ class App:
                     else:
                         now = time.time()
                         p.mirror_idle_since = p.mirror_idle_since or now
-                        if now - p.mirror_idle_since >= BLANK_AFTER:
+                        since = now - p.mirror_idle_since
+                        if since >= CONFIRM_AFTER and not p.confirming:
+                            p.confirming = True
+                            asyncio.ensure_future(self._confirm(p))
+                        if since >= BLANK_AFTER and p.confirm_done:
                             p.cancel_sonos()
-                            p.mirror_idle_since = 0.0
+                            p.mirror_idle_since, p.confirming, p.confirm_done = 0.0, False, False
                             self.blank(p)
                 else:
-                    p.mirror_idle_since = 0.0
+                    p.mirror_idle_since, p.confirming, p.confirm_done = 0.0, False, False
                 if not idle:
                     p.blank_t = 0.0
                 elif p.blank_t and not p.sonos_task and time.time() - p.blank_t > 30:

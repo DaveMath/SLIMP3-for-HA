@@ -163,6 +163,9 @@ class SonosMonitor:
     TOPO_TTL = 60      # seconds; the household layout rarely changes
 
     REDISCOVER = 600   # seconds between discovery searches (addresses can change)
+    FAST = 3.0         # seconds between polls while a wanted group is playing, or did within the last GRACE seconds
+    SLOW = 10.0        # ... and while nothing has played for a while
+    GRACE = 60.0
 
     def __init__(self, ips, log=print, discovery=True):
         self.ips, self.log, self.discovery = list(ips), log, discovery
@@ -170,6 +173,7 @@ class SonosMonitor:
         self.groups = []
         self._topo, self._topo_t = [], 0.0
         self._ok = True
+        self._want, self._last_playing = {""}, 0.0
 
     @property
     def enabled(self):
@@ -220,7 +224,11 @@ class SonosMonitor:
             out.append(g)
         return out
 
-    async def run(self, interval=3.0, needed=None):
+    async def poll_now(self):
+        """Read the groups right now (used to confirm a stop before the display goes black)."""
+        self.groups = await asyncio.get_event_loop().run_in_executor(None, self._cycle, self._want)
+
+    async def run(self, needed=None):
         """needed(): returns the set of lowercase room names some idle SLIMP3 is showing ('' = any room).
         While it is empty nothing is polled at all (no network, no CPU)."""
         loop = asyncio.get_event_loop()
@@ -230,8 +238,11 @@ class SonosMonitor:
                 self.groups = []
                 await asyncio.sleep(5)
                 continue
+            self._want = want
             try:
                 self.groups = await loop.run_in_executor(None, self._cycle, want)
+                if any(g["state"] == "PLAYING" for g in self.groups if "" in want or any(r.lower() in want for r in g["rooms"])):
+                    self._last_playing = time.time()
                 if not self._ok:
                     self.log("sonos reachable again")
                 self._ok = True
@@ -239,7 +250,7 @@ class SonosMonitor:
                 if self._ok:
                     self.log("sonos unreachable: %s" % e)
                 self._ok, self.groups, self._topo = False, [], []
-            await asyncio.sleep(interval)
+            await asyncio.sleep(self.FAST if time.time() - self._last_playing < self.GRACE else self.SLOW)
 
     def rooms(self):
         return sorted(r for g in (self._topo or self.groups) for r in g["rooms"])

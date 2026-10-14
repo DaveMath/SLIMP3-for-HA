@@ -94,6 +94,12 @@ class CastLink:
         self._rid += 1
         self._send(namespace, {"type": kind, "requestId": self._rid}, dest)
 
+    def refresh(self):
+        """Ask the device for its receiver and media status again (the answers arrive as ordinary messages)."""
+        self._request(NS_RECV, "receiver-0")
+        if self.transport:
+            self._request(NS_MEDIA, self.transport)
+
     async def _beat(self):
         while True:
             await asyncio.sleep(5)
@@ -225,6 +231,7 @@ class CastMonitor:
         self.log, self.enabled, self.ips = log, bool(enabled), [str(i) for i in (ips or []) if i]
         self.devices = {}           # name -> latest play state
         self._found = {}            # name -> {name, host, port, model}
+        self._links = {}            # name -> open CastLink
         self._tasks = {}            # name -> running connection task
         self._retry = {}
         self._disc_t = 0.0
@@ -269,6 +276,7 @@ class CastMonitor:
     async def _session(self, name):
         f = self._found[name]
         link = CastLink(name, f["host"], f["port"], f["model"], self.log, self._apply)
+        self._links[name] = link
         try:
             await link.run()
         except asyncio.CancelledError:
@@ -277,6 +285,7 @@ class CastMonitor:
             self._dev_err[name] = "%s: %s" % (type(e).__name__, e) if str(e) else type(e).__name__
             self.log("Google Cast %s: connection ended (%s); retrying in a minute" % (name, self._dev_err[name]))
         finally:
+            self._links.pop(name, None)
             self.devices.pop(name, None)
             self._seen_t.pop(name, None)
             self._retry[name] = time.time() + 60
@@ -288,6 +297,13 @@ class CastMonitor:
             await asyncio.gather(t, return_exceptions=True)
         self.devices.pop(name, None)
         self._seen_t.pop(name, None)
+
+    async def poll_now(self):
+        """Ask every connected device for its state right now (used to confirm a stop before the display goes black)."""
+        for link in list(self._links.values()):
+            link.refresh()
+        if self._links:
+            await asyncio.sleep(1.0)
 
     async def run(self, needed, interval=3.0):
         """needed(): the set of lowercase device names an idle SLIMP3 wants ('' = any). Empty: stay disconnected."""

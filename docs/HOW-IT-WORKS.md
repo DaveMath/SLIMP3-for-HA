@@ -163,7 +163,7 @@ The app needs very little CPU: under 1% of one core on a Raspberry Pi 5. Typical
 - **Memory.** The Python process measured 22 to 56 MB. The waveform holds the decoded track in memory (22.05 kHz mono, capped at 15 minutes, about 40 MB at the cap).
 - **Disk.** The container image is about 218 MiB installed, mostly ffmpeg and its libraries.
 - **Speakers.** Two HomePods connected cost about 0.10% of a core and 5 MB; with a Cast connection open the idle figure above still rounds to 0.0% ([SPEAKERS.md](SPEAKERS.md)). Connections exist only while an idle SLIMP3 wants them.
-- Sonos is polled, not event-driven, and the engine polls a full player buffer about 4 times a second.
+- Sonos is polled, not event-driven, and the engine polls a full player buffer about 4 times a second. What is polled, how often, and why: [POLLING.md](POLLING.md).
 
 ## The waveform display
 

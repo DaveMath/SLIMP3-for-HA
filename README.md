@@ -43,6 +43,7 @@ Built on the [Krystalize.AI](https://krystalize.ai/) local harness.
 | [docs/SLEEP-MODE.md](docs/SLEEP-MODE.md) | The sleep countdown and dark display |
 | [docs/WEB-PAGE.md](docs/WEB-PAGE.md) | The sidebar page: timeline, volume, Back, Info, seeking |
 | [docs/DASHBOARD.md](docs/DASHBOARD.md) | The dashboard tile and media browser |
+| [docs/POLLING.md](docs/POLLING.md) | How little the app polls, and the method used to keep it that way |
 | [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) | Architecture, the SLIMP3 protocol, streaming, display, footprint |
 | [docs/API.md](docs/API.md) | The HTTP API behind the page |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common problems and fixes |
