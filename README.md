@@ -1,5 +1,7 @@
 # SLIMP3-for-HA
 
+[![Add this repository to your Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FDaveMath%2FSLIMP3-for-HA)
+
 A Home Assistant app (formerly "add-on") that brings a Slim Devices **SLIMP3** network music player back to life. It plays music from Plex or any DLNA/UPnP media server on the SLIMP3, and it shows what your **Sonos**, **HomePod** and **Google Home / Nest** speakers are playing on the SLIMP3's vacuum fluorescent display.
 
 ## Why this exists
@@ -30,7 +32,7 @@ Built on the [Krystalize.AI](https://krystalize.ai/) local harness.
 
 ## Install
 
-1. In Home Assistant open **Settings > Apps > App store**, open the menu (top right), choose **Repositories**, and add `https://github.com/DaveMath/SLIMP3-for-HA`.
+1. Click the button above, or in Home Assistant open **Settings > Apps > App store**, open the menu (top right), choose **Repositories**, and add `https://github.com/DaveMath/SLIMP3-for-HA`.
 2. Install **SLIMP3 Player** and start it.
 3. Open **SLIMP3** in the sidebar. Media servers and speakers are found automatically; everything else is optional and lives on the app's **Configuration** tab ([docs/CONFIGURATION.md](docs/CONFIGURATION.md)).
 
