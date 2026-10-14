@@ -109,12 +109,30 @@ display waits until the sequence has finished.
 
 ## Footprint
 
-Measured on a Mac against a simulated SLIMP3 (not on Home Assistant hardware), streaming the same Plex MP3
-for 40 seconds of audio: pass-through used about **0.5 s of CPU** (13 ms per audio second) even though it sent
-twice as many bytes (the file is 261 kbps against the 128 kbps re-encode), and the ffmpeg path used about
-**1.1 s** (0.43 s in the app plus 0.64 s in ffmpeg). The simulated device runs inside the same process for both,
-so the app's own share is smaller than these numbers. Idle, the app does nothing but answer the player's
-10-second hello. While mirroring Sonos it sends no audio and one display packet when the text changes.
+Measured on a Mac (Apple silicon, Python 3.13) against a simulated SLIMP3, your real Plex server and your real
+Sonos system. **Not measured on Raspberry Pi hardware**: CPU shares are relative, and the same work will be a
+larger share of a slower core. After installing, the app's Info page in Home Assistant shows its real CPU and
+memory use on your host.
+
+| Situation | Network | CPU (share of one Mac core) |
+| --- | --- | --- |
+| Idle, player attached (one hello every 10 s) | negligible | 0.005% |
+| Mirroring Sonos in one room | 1.7 KB/s (3 HTTP calls, 5 KB, every 3 s) | 0.11% |
+| Mirroring Sonos, "any room" (all groups polled) | 3.1 KB/s (6 calls, 9 KB) | 0.26% |
+| Pass-through MP3 at 261 kbps | to the player about 33 KB/s (about the file's bit rate) plus 27 acks/s (1.2 KB/s) and about 4 empty polls/s | 0.53% (includes the simulated player) |
+| Converting with ffmpeg (non-MP3, TV) | as above, at 128 kbps | about 2.7% (0.64 s of ffmpeg CPU per 40 s of audio, measured before the polling change) |
+
+- **Download side.** The source is read over HTTP. If the media server runs on the same host (Plex as a Home
+  Assistant app), that traffic never reaches the LAN. Otherwise it adds about the same again.
+- **Memory.** The Python process measured between 22 and 48 MB (macOS figures vary). Not measured on Alpine.
+- **Disk.** The container image is about 218 MiB installed (143 packages in the Supervisor build log). Most of it is
+  ffmpeg and its libraries; numpy and OpenBLAS (used only by the optional analyzer) are 5 of the 143 packages.
+- **Known remaining costs.** Sonos is polled, not event-driven. The engine still polls a full player buffer about
+  4 times a second. The Python runtime and the image size are what they are.
+
+Two inefficiencies found while measuring were fixed: Sonos polling originally used a new connection per call and
+polled every group (7 calls, 12.5 KB, 11.7 ms CPU per cycle in the test system), and the engine polled a full buffer
+20 times a second (19 empty polls and 43 acks per second, 1.33% CPU).
 
 ## The spectrum analyzer (optional, off by default)
 
@@ -154,12 +172,17 @@ reachable on port 32469. Two details:
 
 The monitor is **read-only**: it never sends a play, pause or volume command.
 
-- It asks any configured Sonos player for the household topology (UPnP `ZoneGroupTopology` on port 1400).
+- **Discovery.** Unless turned off, it finds Sonos players with an SSDP search for the `ZonePlayer` device type
+  (about 3.5 seconds on the test network, two players found). The search repeats every 10 minutes and after a
+  failure, and only while some idle SLIMP3 wants Sonos. Addresses in `sonos_ips` are used as well.
+- It asks any one Sonos player for the household topology (UPnP `ZoneGroupTopology` on port 1400), and caches it
+  for 60 seconds.
   That lists every group, its coordinator and its rooms. Invisible members (such as bonded subs and
   surrounds) are left out.
-- For each group coordinator it reads the transport state every 3 seconds. Only if the group is
-  playing does it also read the current media and track metadata (`AVTransport`). It polls only while
-  some SLIMP3 is idle and wants to show Sonos; otherwise it sleeps.
+- Every 3 seconds it reads the transport state of the group coordinators **for the rooms a SLIMP3 is showing**,
+  and only if a group is playing does it also read the current media and track metadata (`AVTransport`). It
+  keeps one persistent HTTP connection per Sonos player. It polls only while some SLIMP3 is idle and wants to
+  show Sonos; otherwise it sleeps.
 - The **station** line comes from the current item's title when its class is a radio broadcast, for
   example `CH 55 - SiriusXM Chill`. **Artist and title** come from the track metadata, or from the
   stream-content string some radio sources use.

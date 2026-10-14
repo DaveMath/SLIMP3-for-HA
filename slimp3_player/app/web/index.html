@@ -31,6 +31,8 @@ select{background:#2a2a2a;color:var(--fg);border:0;border-radius:8px;padding:8px
   </div>
 </header>
 <main>
+  <div class="row" id="prow"><input id="pname" placeholder="Name this player" maxlength="30" onchange="savePlayer()" style="max-width:170px;background:#2a2a2a;color:var(--fg);border:0;border-radius:8px;padding:8px">
+  <select id="proom" onchange="savePlayer()" title="Sonos room this player shows when idle"></select></div>
   <div class="row"><select id="player" onchange="poll()"></select><select id="src" onchange="root()"></select><span id="dev" style="color:var(--dim);font-size:13px"></span></div>
   <div id="crumbs"></div><div id="msg"></div><div id="list"></div>
 </main>
@@ -47,12 +49,18 @@ async function poll(){try{const s=await api('api/state');
   if(sel.dataset.macs!==want){const keep=sel.value;sel.dataset.macs=want;sel.innerHTML=s.players.map(x=>'<option value="'+x.mac+'">'+esc(x.name||x.mac)+'</option>').join('');if(keep)sel.value=keep;}
   const p=s.players.find(x=>x.mac===sel.value)||s.players[0];
   $('dev').textContent=p?(p.mac+' ('+p.ip+')'):'No SLIMP3 connected';
+  if(p){if(document.activeElement!==$('pname'))$('pname').value=p.name||'';
+    if(document.activeElement!==$('proom'))$('proom').value=p.show_sonos===false?'__off':(p.sonos_room||'');}
   if(p&&p.meta&&p.meta.title){$('np').innerHTML=esc(p.meta.title)+'<small>'+esc(p.meta.artist||'')+(p.meta.album?' - '+esc(p.meta.album):'')+' &middot; '+p.state+' '+fmt(p.position)+'</small>';}
   else $('np').textContent='Nothing playing';
   $('pp').innerHTML=(p&&p.state==='paused')?'&#9654;&#65039;':'&#9208;&#65039;';
   if(p&&document.activeElement!==$('vol')){$('vol').value=p.volume;$('volv').textContent=p.volume;}
   if(!$('src').options.length&&s.sources.length){$('src').innerHTML=s.sources.map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join('');root();}
  }catch(e){}}
+async function loadRooms(){try{const r=await api('api/sonos');const sel=$('proom'),keep=sel.value;
+  sel.innerHTML='<option value="">Sonos: any playing room</option>'+r.rooms.map(x=>'<option value="'+esc(x)+'">Sonos: '+esc(x)+'</option>').join('')+'<option value="__off">Sonos display off</option>';
+  sel.value=keep;}catch(e){}}
+function savePlayer(){const v=$('proom').value;post('api/player',{mac:mac(),name:$('pname').value,sonos_room:v==='__off'?'':v,show_sonos:v!=='__off'}).then(poll).catch(e=>$('msg').textContent=e.message);}
 function ctl(a){post('api/control',{mac:mac(),action:a}).then(poll).catch(e=>$('msg').textContent=e.message);}
 function vol(v){$('volv').textContent=v;clearTimeout(volTimer);volTimer=setTimeout(()=>post('api/control',{mac:mac(),action:'volume',value:+v}),150);}
 function root(){stack=[{id:'0',title:$('src').selectedOptions[0]?.text||'Library'}];load();}
@@ -69,5 +77,5 @@ function open_(n){const it=window.items[n];if(it.container){stack.push({id:it.id
   else{play({container:stack[stack.length-1].id,start_id:it.id});}}
 function playAll(){play({container:stack[stack.length-1].id});}
 function play(b){b.source=$('src').value;b.mac=mac();post('api/play',b).then(poll).catch(e=>$('msg').textContent=e.message);}
-setInterval(poll,1000);poll();
+setInterval(poll,1000);poll();loadRooms();setInterval(loadRooms,30000);
 </script></body></html>

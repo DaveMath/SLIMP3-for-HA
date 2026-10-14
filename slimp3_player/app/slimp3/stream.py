@@ -14,7 +14,8 @@ WPTR_LIMIT = BUFFER_SIZE // 2             # buffer addresses are 16-bit words
 SEQ_LIMIT = WPTR_LIMIT
 TIMEOUT = 0.05                            # retransmit timeout (s)
 ACK_TIMEOUT = 30.0
-FULL_DELAY = 0.05
+FULL_DELAY = 0.05        # retry when a packet is still in flight
+POLL_FULL = 0.25         # poll a full buffer (it holds 4-8 s of audio, so this is plenty)
 BYTES_PER_SEC = 16000.0                   # 128 kbps CBR output
 
 # control byte per stream state: 0 = decode, 1 = stop (keep rptr), 3 = stop + reset rptr
@@ -118,7 +119,7 @@ class Stream:
                 self._send_empty()
                 return
             if self.fullness > BUFFER_FULL_THRESHOLD:
-                self._later(FULL_DELAY, self._send_empty)
+                self._later(POLL_FULL, self._send_empty)
                 return
             if self.state == "eof":
                 self._later(FULL_DELAY, self._send_empty)    # poll for underrun

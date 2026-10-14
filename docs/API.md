@@ -51,13 +51,23 @@ Playback continues through the container automatically. Returns `{"queued": N, "
 
 `value` is only used by `volume` (0-100). `identify` runs the boot screens (IP, MAC, prompts) on that player. Returns the player's status.
 
+## `POST /api/player`
+
+```json
+{"mac": "...", "name": "Den", "sonos_room": "Living Room", "show_sonos": true}
+```
+
+Saves a player's name and Sonos room (any subset of the fields) and applies it immediately. Saved values
+override the options file. An empty `sonos_room` means any playing room; `show_sonos: false` turns the Sonos
+display off for that player.
+
 ## `GET /api/sonos`
 
 ```json
-{"rooms": ["Kitchen", "Living Room"],
+{"rooms": ["Kitchen", "Living Room"], "discovered": ["192.168.1.20"],
  "groups": [{"coordinator": "192.168.1.20", "room": "Living Room", "rooms": ["Living Room"],
              "state": "PLAYING", "station": "CH 55 - SiriusXM Chill",
              "artist": "...", "title": "...", "album": "", "uri": "..."}]}
 ```
 
-`station` is filled only for radio-type sources. Artist and title are read only while a group is playing.
+`discovered` lists the Sonos addresses found by the network search. `station` is filled only for radio-type sources. Artist and title are read only while a group is playing.

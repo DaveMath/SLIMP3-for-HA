@@ -66,7 +66,8 @@ class Player:
 
     def status(self):
         state = self.stream.state if self.stream else "stop"
-        return {"mac": self.mac, "name": self.name, "fw": self.fw, "configured": self.configured, "ip": self.addr[0], "state": state,
+        return {"mac": self.mac, "name": self.name, "fw": self.fw, "configured": self.configured, "sonos_room": self.sonos_room,
+                "show_sonos": self.show_sonos, "ip": self.addr[0], "state": state,
                 "position": round(self.position(), 1), "volume": self.volume,
                 "meta": self.meta if self.stream else {}, "index": self.index,
                 "queue_len": len(self.queue)}

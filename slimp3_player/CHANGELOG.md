@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0
+- Sonos players are discovered automatically (no addresses needed). The sidebar page has a name field and a Sonos
+  room dropdown per player; choices apply immediately and are saved (they override the options file).
+- Lighter Sonos polling: one persistent connection per speaker, cached layout, only the wanted rooms are read.
+- Lighter streaming: a full player buffer is polled 4 times a second instead of 20.
+- New options: `sonos_discovery`; `sonos_ips` is now optional.
+
 ## 0.5.0
 - MP3 files are now sent to the SLIMP3 untouched (it decodes MP3 itself), as slimserver does. ffmpeg is used only
   for other formats and live TV. `mp3_passthrough: false` restores converting everything.

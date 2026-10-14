@@ -3,8 +3,11 @@
 playing (station, artist, title) using the local UPnP interface on port 1400."""
 import asyncio
 import html
+import http.client
 import re
-import urllib.request
+import socket
+import threading
+import time
 import xml.etree.ElementTree as ET
 
 AVT = ("/MediaRenderer/AVTransport/Control", "AVTransport")
@@ -17,16 +20,40 @@ NS = {
 }
 
 
+_pool = {}
+_pool_lock = threading.Lock()
+
+
 def _soap(ip, svc, action, args="", timeout=5):
+    """One persistent HTTP connection per Sonos player (no new TCP handshake per call)."""
     path, name = svc
     env = ('<?xml version="1.0"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" '
            's:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><s:Body>'
            '<u:%s xmlns:u="urn:schemas-upnp-org:service:%s:1">%s</u:%s></s:Body></s:Envelope>'
            % (action, name, args, action)).encode()
-    req = urllib.request.Request("http://%s:1400%s" % (ip, path), env, {
-        "Content-Type": 'text/xml; charset="utf-8"',
-        "SOAPACTION": '"urn:schemas-upnp-org:service:%s:1#%s"' % (name, action)})
-    return urllib.request.urlopen(req, timeout=timeout).read().decode("utf-8", "replace")
+    headers = {"Content-Type": 'text/xml; charset="utf-8"',
+               "SOAPACTION": '"urn:schemas-upnp-org:service:%s:1#%s"' % (name, action)}
+    for attempt in (0, 1):
+        with _pool_lock:
+            conn = _pool.get(ip)
+            if conn is None:
+                conn = _pool[ip] = http.client.HTTPConnection(ip, 1400, timeout=timeout)
+        try:
+            conn.request("POST", path, env, headers)
+            r = conn.getresponse()
+            data = r.read()
+            if r.status != 200:
+                raise OSError("HTTP %d" % r.status)
+            return data.decode("utf-8", "replace")
+        except (OSError, http.client.HTTPException):
+            with _pool_lock:
+                _pool.pop(ip, None)
+            try:
+                conn.close()
+            except Exception:
+                pass
+            if attempt:
+                raise
 
 
 def _field(xml, tag):
@@ -66,9 +93,9 @@ def parse_stream_content(s):
     return "", s.strip()
 
 
-def poll_system(seed_ips):
-    """Blocking. Ask the first reachable seed for the household topology, then read the
-    state of every group's coordinator. Returns a list of group dicts."""
+def read_topology(seed_ips):
+    """Blocking. Ask the first reachable seed for the household topology: a list of group dicts
+    (coordinator address, rooms) with no playback state yet."""
     last = None
     for seed in seed_ips:
         try:
@@ -89,10 +116,6 @@ def poll_system(seed_ips):
         group = {"coordinator": ip.group(1), "room": coord.get("ZoneName", ""),
                  "rooms": [m.get("ZoneName", "") for m in members], "state": "",
                  "station": "", "artist": "", "title": "", "album": "", "uri": ""}
-        try:
-            group.update(_read_group(group["coordinator"]))
-        except Exception:
-            pass
         groups.append(group)
     return groups
 
@@ -115,33 +138,109 @@ def _read_group(cip):
             "album": track.get("album", ""), "uri": _field(media, "CurrentURI")}
 
 
+def discover(timeout=3.0):
+    """SSDP search for Sonos players (device type ZonePlayer). Returns their IP addresses."""
+    msg = ("M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 2\r\n"
+           "ST: urn:schemas-upnp-org:device:ZonePlayer:1\r\n\r\n").encode()
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
+    s.settimeout(0.5)
+    found = []
+    try:
+        for _ in range(2):
+            s.sendto(msg, ("239.255.255.250", 1900))
+        end = time.time() + timeout
+        while time.time() < end:
+            try:
+                _, addr = s.recvfrom(4096)
+            except socket.timeout:
+                continue
+            if addr[0] not in found:
+                found.append(addr[0])
+    finally:
+        s.close()
+    return sorted(found)
+
+
 class SonosMonitor:
-    def __init__(self, ips, log=print):
-        self.ips, self.log = list(ips), log
+    TOPO_TTL = 60      # seconds; the household layout rarely changes
+
+    REDISCOVER = 600   # seconds between discovery searches (addresses can change)
+
+    def __init__(self, ips, log=print, discovery=True):
+        self.ips, self.log, self.discovery = list(ips), log, discovery
+        self.discovered, self._disc_t = [], 0.0
         self.groups = []
+        self._topo, self._topo_t = [], 0.0
         self._ok = True
 
+    def _seeds(self, force=False):
+        """Addresses to ask for the household layout: configured ones plus whatever discovery finds."""
+        now = time.time()
+        if self.discovery and (force or not (self.ips or self.discovered) or now - self._disc_t > self.REDISCOVER):
+            found = discover()
+            self._disc_t = now
+            if found != self.discovered:
+                self.log("sonos discovery found: %s" % (", ".join(found) or "nothing"))
+            self.discovered = found
+        return list(dict.fromkeys(self.ips + self.discovered))
+
+    def _read_layout(self):
+        try:
+            seeds = self._seeds()
+            if not seeds:
+                raise RuntimeError("no Sonos players found")
+            return read_topology(seeds)
+        except Exception:
+            if not self.discovery:
+                raise
+            return read_topology(self._seeds(force=True) or [])   # one retry after a fresh search
+
+    def ensure_topology(self):
+        """Blocking. Make sure the household layout (rooms) is known, e.g. for the settings page."""
+        if not self._topo:
+            self._topo, self._topo_t = self._read_layout(), time.time()
+
+    def _cycle(self, want):
+        """Blocking. Refresh the topology now and then, and read playback state only for the groups
+        that contain a room in `want` (a set of lowercase names; '' means every room)."""
+        now = time.time()
+        if not self._topo or now - self._topo_t > self.TOPO_TTL:
+            self._topo, self._topo_t = self._read_layout(), now
+        out = []
+        for g in self._topo:
+            g = dict(g)
+            if "" in want or any(r.lower() in want for r in g["rooms"]):
+                try:
+                    g.update(_read_group(g["coordinator"]))
+                except Exception:
+                    self._topo_t = 0.0          # coordinator may have changed: re-read the layout next time
+            out.append(g)
+        return out
+
     async def run(self, interval=3.0, needed=None):
-        """needed(): optional callable; while it returns False nothing is polled (no network, no CPU)."""
+        """needed(): returns the set of lowercase room names some idle SLIMP3 is showing ('' = any room).
+        While it is empty nothing is polled at all (no network, no CPU)."""
         loop = asyncio.get_event_loop()
         while True:
-            if needed is not None and not needed():
+            want = needed() if needed is not None else {""}
+            if not want:
                 self.groups = []
                 await asyncio.sleep(5)
                 continue
             try:
-                self.groups = await loop.run_in_executor(None, poll_system, self.ips)
+                self.groups = await loop.run_in_executor(None, self._cycle, want)
                 if not self._ok:
                     self.log("sonos reachable again")
                 self._ok = True
             except Exception as e:
                 if self._ok:
                     self.log("sonos unreachable: %s" % e)
-                self._ok, self.groups = False, []
+                self._ok, self.groups, self._topo = False, [], []
             await asyncio.sleep(interval)
 
     def rooms(self):
-        return sorted(r for g in self.groups for r in g["rooms"])
+        return sorted(r for g in (self._topo or self.groups) for r in g["rooms"])
 
     def active(self, room=None):
         """The playing group that contains `room` (case-insensitive), or any playing group if room is empty."""

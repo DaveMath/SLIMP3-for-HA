@@ -93,11 +93,13 @@ class App:
             log("spectrum analyzer is off (default): MP3 is passed straight through, no audio processing")
         self.server.on_new_player = self._new_player
         self.server.on_reboot = self.start_welcome
-        self.sonos = SonosMonitor(opts.get("sonos_ips") or [], log)
+        self.sonos = SonosMonitor(opts.get("sonos_ips") or [], log, bool(opts.get("sonos_discovery", True)))
         self.cfg = {str(c.get("mac", "")).lower(): c for c in (opts.get("players") or [])}
+        self.data_dir = os.environ.get("SLIMP3_DATA", "/data")
+        self.saved = self._load_saved()      # settings made on the sidebar page; they override the options
 
     def _new_player(self, p):
-        c = self.cfg.get(p.mac.lower(), {})
+        c = self.cfg_for(p.mac)
         p.name = c.get("name") or ""
         p.sonos_room = c.get("sonos_room") or ""
         p.show_sonos = c.get("show_sonos", self.opts.get("sonos_display", True))
@@ -114,6 +116,28 @@ class App:
             log("player %s has no entry in 'players'; using defaults" % p.mac)
         p.on_ir = lambda code: log("IR 0x%s" % code)
         self.start_welcome(p)
+
+    # ---- per-player settings: options file, overridden by what was saved from the sidebar page ----
+    def _load_saved(self):
+        try:
+            with open(os.path.join(self.data_dir, "player_settings.json")) as f:
+                return {k.lower(): v for k, v in json.load(f).items()}
+        except (OSError, ValueError):
+            return {}
+
+    def _save(self):
+        try:
+            path = os.path.join(self.data_dir, "player_settings.json")
+            with open(path + ".tmp", "w") as f:
+                json.dump(self.saved, f)
+            os.replace(path + ".tmp", path)
+        except OSError as e:
+            log("could not save player settings: %s" % e)
+
+    def cfg_for(self, mac):
+        c = dict(self.cfg.get(mac.lower(), {}))
+        c.update(self.saved.get(mac.lower(), {}))
+        return c
 
     # ---- boot / identify screens ------------------------------------
     def idle_screen(self, p):
@@ -138,7 +162,7 @@ class App:
             for a, b, secs in steps:
                 p.show(ctr(a), ctr(b))
                 await asyncio.sleep(secs)
-            c = self.cfg.get(p.mac.lower())
+            c = self.cfg_for(p.mac) or None
             later = []
             if c is None:
                 later.append(("Optional: name this player", "Add the MAC to 'players' in app config", 4.0))
@@ -246,12 +270,36 @@ class App:
         return web.json_response(p.status())
 
     def _sonos_needed(self):
-        """Poll Sonos only while some SLIMP3 is idle and wants to show it."""
-        return any(p.show_sonos and p.stream is None and p._runner is None
-                   for p in self.server.players.values())
+        """Rooms (lowercase; '' = any) that an idle SLIMP3 wants to show. Empty: do not poll Sonos at all."""
+        return {(p.sonos_room or "").lower() for p in self.server.players.values()
+                if p.show_sonos and p.stream is None and p._runner is None}
 
     async def sonos_state(self, req):
-        return web.json_response({"rooms": self.sonos.rooms(), "groups": self.sonos.groups})
+        if not self.sonos.rooms():
+            try:
+                await asyncio.get_event_loop().run_in_executor(None, self.sonos.ensure_topology)
+            except Exception as e:
+                log("sonos rooms not available: %s" % e)
+        return web.json_response({"rooms": self.sonos.rooms(), "groups": self.sonos.groups,
+                                  "discovered": self.sonos.discovered})
+
+    async def set_player(self, req):
+        """Save a player's name and Sonos room from the sidebar page and apply it immediately."""
+        body = await req.json()
+        p = self.player(body.get("mac"))
+        if not p:
+            raise web.HTTPServiceUnavailable(text="no SLIMP3 connected")
+        s = self.saved.setdefault(p.mac.lower(), {})
+        if "name" in body:
+            p.name = s["name"] = str(body["name"])[:30]
+        if "sonos_room" in body:
+            p.sonos_room = s["sonos_room"] = str(body["sonos_room"])
+        if "show_sonos" in body:
+            p.show_sonos = s["show_sonos"] = bool(body["show_sonos"])
+        p.configured = True
+        p.cancel_sonos()           # the display loop restarts it with the new room within a second
+        self._save()
+        return web.json_response(p.status())
 
     async def sonos_display_loop(self):
         """Per SLIMP3: mirror its Sonos room's group while the SLIMP3 itself is idle."""
@@ -279,7 +327,8 @@ class App:
         app.add_routes([
             web.get("/", self.index), web.get("/api/state", self.state),
             web.get("/api/browse", self.browse), web.post("/api/play", self.play),
-            web.post("/api/control", self.control), web.get("/api/sonos", self.sonos_state)])
+            web.post("/api/control", self.control), web.get("/api/sonos", self.sonos_state),
+            web.post("/api/player", self.set_player)])
         runner = web.AppRunner(app)
         await runner.setup()
         await web.TCPSite(runner, "0.0.0.0", PORT).start()

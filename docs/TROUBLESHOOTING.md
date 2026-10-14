@@ -59,9 +59,11 @@ The display ROM is not Unicode. Titles are folded to ASCII and characters that c
 
 ## Sonos does not show
 
-- Set `sonos_ips` to the address of any Sonos player.
-- Open `/api/sonos` through the app and check `rooms` for the exact room name; `sonos_room` must match
-  it (case does not matter).
+- Sonos players are found automatically with a multicast search. If the log says `sonos discovery found: nothing`,
+  multicast is probably blocked or the players are on another network segment: set `sonos_ips` to the address of
+  any Sonos player.
+- Pick the room from the Sonos dropdown on the sidebar page, or check `/api/sonos` for the exact room name
+  (matching ignores case).
 - A player mapped to a room mirrors the **group** that room is in, and only while the group is
   `PLAYING`. An ungrouped, stopped room shows nothing even if another room plays.
 - Sonos is shown only when the SLIMP3 itself is idle.

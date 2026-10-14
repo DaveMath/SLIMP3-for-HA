@@ -9,7 +9,8 @@ Changes apply after restarting the app.
 | --- | --- | --- |
 | `dlna_servers` | `[]` | List of DLNA/UPnP media server description URLs. For Plex's DLNA server: `http://<host>:32469/DeviceDescription.xml`. |
 | `player_ips` | `[]` | Optional SLIMP3 addresses. Only needed if a player does not find the server by broadcast. The app sends these addresses a hello until the player registers. |
-| `sonos_ips` | `[]` | IP address of **any one** Sonos player (add a second as a backup). The app reads the whole household from it. |
+| `sonos_ips` | `[]` | Optional. Sonos players are found automatically; add an address only if discovery cannot see them (for example another network segment). One address is enough, the app reads the whole household from it. |
+| `sonos_discovery` | `true` | Search the network for Sonos players. `false` uses only `sonos_ips`. |
 | `players` | `[]` | Per-SLIMP3 settings, matched by MAC address. See below. |
 | `sonos_display` | `true` | Default for `show_sonos`: show Sonos on the display while the SLIMP3 is idle. |
 | `default_volume` | `40` | Volume (0-100) a player starts at. |
@@ -76,6 +77,16 @@ players:
 Each SLIMP3 has its own playback queue and its own ffmpeg process. The sidebar page has a player
 selector; play and control commands go to the selected player.
 
+## Setting a player's name and Sonos room from the sidebar page
+
+Open **SLIMP3** in the sidebar. For the selected player, a name field and a Sonos dropdown sit at the top. The
+dropdown lists the Sonos rooms the app discovered (plus "any playing room" and "Sonos display off"). Changes
+apply immediately and are saved in the app's data folder, so they survive restarts and updates.
+
+Saved settings **override** the same fields in `players` from the options; fields you never set on the page still
+come from the options (for example `volume`). Use the page for the everyday choices and `players` when you want
+the setup written down in configuration.
+
 ## Boot screens: seeing each player's IP and MAC
 
 When a SLIMP3 connects, or restarts (it broadcasts a new discovery), the app takes over its display for
@@ -132,8 +143,7 @@ is ungrouped and stopped, that SLIMP3 shows nothing from Sonos even if another r
 
 - **SLIMP3 MAC address:** shown on the player's own display at connect (see Boot screens), printed in the app log when the player connects
   (`player 00:04:20:... at 192.168.1.50 fw 2.2`), and shown in the sidebar page's player selector.
-- **Sonos IP address:** in the Sonos app (About My System) or your router's device list.
-- **Sonos room names:** open `/api/sonos` through the app (see [API.md](API.md)); the `rooms` list holds
-  the exact names. Room matching ignores case.
+- **Sonos players and rooms:** found automatically and listed in the sidebar page's Sonos dropdown. The same
+  list is at `/api/sonos` (see [API.md](API.md)). Room matching ignores case.
 - **Plex DLNA URL:** enable the DLNA server in Plex's settings, then use port 32469 on the Plex host.
   Open the URL in a browser; it should return an XML device description.

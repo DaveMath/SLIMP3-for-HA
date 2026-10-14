@@ -10,10 +10,13 @@ configuration:
       Only needed if a player does not find the server by itself. Leave empty
       for normal broadcast discovery.
   sonos_ips:
-    name: Sonos player addresses
+    name: Sonos player addresses (optional)
     description: >-
-      IP address of any one Sonos player (add a second as a backup). The app reads the whole
-      household from it, finds each group's coordinator and reads what it is playing. Read-only.
+      Sonos players are found automatically. Only add an address here if discovery cannot see them
+      (for example when they are on another network segment). Read-only: the app never controls Sonos.
+  sonos_discovery:
+    name: Find Sonos players automatically
+    description: Search the network for Sonos players. Turn off to use only the addresses above.
   sonos_display:
     name: Show Sonos on the display
     description: >-

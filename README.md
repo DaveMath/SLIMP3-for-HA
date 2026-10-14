@@ -24,7 +24,8 @@ Written by @GGDM on Krystalize.AI local harness.
 - **Setup help on the player itself.** At connect or restart the SLIMP3's display shows its IP and MAC
   address and step-by-step prompts (name this player, add a music source, Sonos room not found).
 - **Multi-room.** Each SLIMP3 is matched by MAC address to its own settings, including which Sonos
-  room it mirrors.
+  room it mirrors. Sonos speakers are **found automatically** and listed in a dropdown on the sidebar page, where
+  you also name each player; no addresses to type.
 
 ## Requirements
 
@@ -62,7 +63,8 @@ ffmpeg's own output).
 Assistant app; a Sonos S2 system (Playbar and Connect, software 86.10) with SiriusXM. Development and
 all hardware tests ran the same application code on a Mac, driving that real hardware.
 
-**Not yet validated:** building and running the container inside Home Assistant (if you enable the optional
+**Not yet validated:** Sonos discovery from inside the Home Assistant container (it works from a Mac on the same
+network; the container uses the host network, so it is expected to work); building and running the container inside Home Assistant (if you enable the optional
 spectrum analyzer, the app measures its speed at startup and falls back automatically); **MP3 pass-through on the
 real SLIMP3** (it was verified against a simulated SLIMP3 and a real Plex file, and earlier playback on the real
 unit used the ffmpeg path; `mp3_passthrough: false` restores that path); very high bit rate MP3s on the SLIMP3; the boot screens' appearance on the real display (the code ran
